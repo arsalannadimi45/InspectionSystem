@@ -1,0 +1,14 @@
+# Generated folders
+Binaries/
+Intermediate/
+
+# Visual Studio
+.vs/
+*.VC.db
+
+# Rider
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
