@@ -26,6 +26,8 @@ public class InspectionSystem : ModuleRules
 			new string[]
 			{
 				"Core",
+				"EnhancedInput",
+				"DeveloperSettings"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -36,6 +38,8 @@ public class InspectionSystem : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"InputCore",
+				"UMG",
 				"Slate",
 				"SlateCore",
 				// ... add private dependencies that you statically link with here ...	
