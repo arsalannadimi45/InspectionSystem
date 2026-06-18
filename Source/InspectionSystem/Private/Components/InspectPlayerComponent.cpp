@@ -5,6 +5,7 @@
 #include "Core/InspectSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -19,29 +20,56 @@ UInspectPlayerComponent::UInspectPlayerComponent()
 void UInspectPlayerComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	APawn* OwnerPawn = Cast<APawn>(GetOwner());
-	if (!OwnerPawn)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InspectPlayerComponent] Owner is not a Pawn — component disabled."));
-		return;
-	}
-
-	OwningPC = Cast<APlayerController>(OwnerPawn->GetController());
-	if (!OwningPC || !OwningPC->IsLocalController())
-	{
-		// Not the local player — don't set up input.
-		return;
-	}
-
-	BindInspectActions();
 }
 
-// Input actions
-
-void UInspectPlayerComponent::BindInspectActions()
+void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
 {
-	if (!OwningPC)
+	if (!Context)
+	{
+		return;
+	}
+
+	if (!InputSubsystem)
+	{
+		if (const ULocalPlayer* LocalPlayer = OwningPC->GetLocalPlayer())
+		{
+			InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+		}
+		if (!InputSubsystem)
+		{
+			return;
+		}
+	}
+
+	InputSubsystem->AddMappingContext(Context, Priority);
+}
+
+void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Context)
+{
+	if (!Context)
+	{
+		return;
+	}
+
+	if (!InputSubsystem)
+	{
+		if (const ULocalPlayer* LocalPlayer = OwningPC->GetLocalPlayer())
+		{
+			InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+		}
+		
+		if (!InputSubsystem)
+		{
+			return;
+		}
+	}
+
+	InputSubsystem->RemoveMappingContext(Context);
+}
+
+void UInspectPlayerComponent::BindActionsFromContext(UInputMappingContext* Context, ETriggerEvent TriggerEvent)
+{
+	if (!Context || !OwningPC)
 	{
 		return;
 	}
@@ -49,70 +77,47 @@ void UInspectPlayerComponent::BindInspectActions()
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC->InputComponent);
 	if (!EIC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[InspectPlayerComponent] Enhanced Input Component not found."));
 		return;
 	}
 
-	// Interaction prompt (world-space, always-on during gameplay)
-	if (IA_Interact)     EIC->BindAction(IA_Interact,     ETriggerEvent::Triggered, this, &UInspectPlayerComponent::Input_Interact);
-
-	// These are only meaningful during inspect, but we always bind and guard by subsystem state.
-	if (IA_Rotate)       EIC->BindAction(IA_Rotate,       ETriggerEvent::Triggered, this, &UInspectPlayerComponent::Input_Rotate);
-	if (IA_Zoom)         EIC->BindAction(IA_Zoom,         ETriggerEvent::Triggered, this, &UInspectPlayerComponent::Input_Zoom);
-	if (IA_Pan)          EIC->BindAction(IA_Pan,          ETriggerEvent::Triggered, this, &UInspectPlayerComponent::Input_Pan);
-	if (IA_ResetTransform) EIC->BindAction(IA_ResetTransform, ETriggerEvent::Triggered, this, &UInspectPlayerComponent::Input_ResetTransform);
-	if (IA_CloseInspect) EIC->BindAction(IA_CloseInspect, ETriggerEvent::Triggered, this, &UInspectPlayerComponent::Input_CloseInspect);
-}
-
-// Input callbacks
-
-void UInspectPlayerComponent::Input_Interact(const FInputActionValue& /*Value*/)
-{
-	UInspectSubsystem* Sub = GetInspectSubsystem();
-	if (!Sub)
+	TSet<const UInputAction*> UniqueActions;
+	for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
 	{
-		return;
+		if (Mapping.Action)
+		{
+			UniqueActions.Add(Mapping.Action);
+		}
 	}
 
-	if (Sub->IsInspecting())
+	for (const UInputAction* Action : UniqueActions)
 	{
-		Sub->EndInspect();
-		return;
-	}
+		FEnhancedInputActionEventBinding& Binding =
+			EIC->BindAction(Action, TriggerEvent, this, &UInspectPlayerComponent::OnInspectInputTriggered);
 
-	AActor* Target = NearestInspectable.Get();
-	if (Target && OwningPC)
-	{
-		Sub->BeginInspect(Target, OwningPC);
+		BoundActionHandles.Add(Binding.GetHandle());
 	}
 }
 
-void UInspectPlayerComponent::Input_Rotate(const FInputActionValue& Value)
+void UInspectPlayerComponent::UnbindAllActions()
 {
-
-}
-
-void UInspectPlayerComponent::Input_Zoom(const FInputActionValue& Value)
-{
-
-}
-
-void UInspectPlayerComponent::Input_Pan(const FInputActionValue& Value)
-{
-
-}
-
-void UInspectPlayerComponent::Input_ResetTransform(const FInputActionValue& /*Value*/)
-{
-
-}
-
-void UInspectPlayerComponent::Input_CloseInspect(const FInputActionValue& /*Value*/)
-{
-	if (UInspectSubsystem* Sub = GetInspectSubsystem())
+	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC ? OwningPC->InputComponent : nullptr))
 	{
-		Sub->EndInspect();
+		for (uint32 Handle : BoundActionHandles)
+		{
+			EIC->RemoveBindingByHandle(Handle);
+		}
 	}
+	BoundActionHandles.Reset();
+}
+
+void UInspectPlayerComponent::OnInspectInputTriggered(const FInputActionInstance& ActionInstance)
+{
+	DispatchInput(ActionInstance.GetSourceAction(), ActionInstance.GetValue());
+}
+
+void UInspectPlayerComponent::DispatchInput(const UInputAction* InputAction, const FInputActionValue& ActionValue)
+{
+	// Dispatch Inputs to Subsystem to decide which action should be done
 }
 
 // Helpers

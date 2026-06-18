@@ -13,10 +13,10 @@
 #include "Engine/StaticMesh.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/InspectableComponent.h"
+#include "Components/InspectPlayerComponent.h"
 #include "Core/InspectSession.h"
 #include "Core/InspectSettings.h"
 #include "GameFramework/PlayerController.h"
-
 
 
 // Subsystem lifecycle
@@ -45,15 +45,16 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		       TEXT("[UInspectSubsystem::BeginInspect] ActorToInspect or RequestingPC Cannot be null."));
 		return false;
 	}
-	
+
 	// Get default settings from Project Settings
 	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
-	
+
 	// Find InspectableComponent in 
 	UInspectableComponent* InspectComp = ActorToInspect->FindComponentByClass<UInspectableComponent>();
 	if (!InspectComp)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[UInspectSubsystem::BeginInspect] %s has no InspectableComponent."), *ActorToInspect->GetName());
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectSubsystem::BeginInspect] %s has no InspectableComponent."),
+		       *ActorToInspect->GetName());
 		return false;
 	}
 
@@ -76,37 +77,53 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 			LogTemp,
 			Warning,
 			TEXT("[UInspectSubsystem::BeginInspect] No mesh found on %s."),
-			*InspectComp->GetName()
-		);
+			*InspectComp->GetName());
 		return false;
 	}
-	
-	
+
+
 	// Cache the player controller
 	OwningPC = RequestingPC;
-	
+	InspectPlayerComponent = OwningPC->FindComponentByClass<UInspectPlayerComponent>();
+	if (!InspectPlayerComponent)
+	{
+		UE_LOG(
+	LogTemp,
+	Warning,
+	TEXT("[UInspectSubsystem::BeginInspect] No UInspectPlayerComponent found on %s."),
+	*OwningPC->GetName());
+		return false;
+	}
+
 
 	// Notify source actor 
 	IInspectable::Execute_OnInspectBegin(InspectComp);
 
 	// Build capture setup 
 	SetupCaptureActor(Mesh);
-	
+
 	// Spawn the session 
-	UClass* SessionClass = Data->OverrideSessionClass ? Data->OverrideSessionClass.Get() : UInspectSession::StaticClass();
+	UClass* SessionClass = Data->OverrideSessionClass
+		                       ? Data->OverrideSessionClass.Get()
+		                       : UInspectSession::StaticClass();
 
 	CurrentSession = NewObject<UInspectSession>(this, SessionClass);
- 
+
 	CurrentSession->SourceActor = ActorToInspect;
-	CurrentSession->Data        = Data;
-	CurrentSession->OwningPC    = OwningPC;
-	CurrentSession->ProxyMesh   = InspectMeshProxy;
-	CurrentSession->Subsystem   = this;
+	CurrentSession->Data = Data;
+	CurrentSession->OwningPC = OwningPC;
+	CurrentSession->ProxyMesh = InspectMeshProxy;
+	CurrentSession->Subsystem = this;
 	CurrentSession->SetZoom(Data->InitialInspectScale);
- 
+
 	CurrentSession->InitSession();
 
-	TSubclassOf<UInspectWidget> InspectWidgetClass = InspectSettings->InspectWidgetClass.LoadSynchronous();
+	const TSoftClassPtr<UInspectWidget>& CustomClass = InspectComp->GetCustomWidgetClass();
+
+	TSubclassOf<UInspectWidget> InspectWidgetClass =
+		CustomClass.IsValid()
+			? CustomClass.LoadSynchronous()
+			: InspectSettings->InspectWidgetClass.LoadSynchronous();
 
 	// Show UI 
 	if (InspectWidgetClass && !ActiveWidget)
@@ -125,7 +142,11 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	InputMode.SetHideCursorDuringCapture(false);
 	RequestingPC->SetInputMode(InputMode);
 	RequestingPC->SetShowMouseCursor(true);
-
+	
+	// Add Input Mappings
+	InspectPlayerComponent->AddInputMappingContext(InspectSettings->DefaultInspectIMC.LoadSynchronous(), 100);
+	// TODO: Add Custom Mappings too
+	
 	return true;
 }
 
@@ -147,9 +168,16 @@ void UInspectSubsystem::EndInspect()
 		OwningPC->SetInputMode(FInputModeGameOnly());
 		OwningPC->SetShowMouseCursor(false);
 	}
+	
+	// Get default settings from Project Settings
+	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
+	
+	// Remove Input Mappings
+	InspectPlayerComponent->RemoveInputMappingContext(InspectSettings->DefaultInspectIMC.LoadSynchronous());
 
 	// Clear references
 	OwningPC = nullptr;
+	InspectPlayerComponent = nullptr;
 }
 
 // Private helpers
@@ -161,10 +189,10 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	{
 		return;
 	}
-	
+
 	// Get default settings from Project Settings
 	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
-	
+
 
 	// Spawn the hidden capture host actor 
 	FActorSpawnParameters Params;
@@ -174,7 +202,8 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Render target 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(CaptureActor);
-	RenderTarget->InitCustomFormat(InspectSettings->RenderTargetWidth, InspectSettings->RenderTargetHeight, PF_B8G8R8A8, false);
+	RenderTarget->InitCustomFormat(InspectSettings->RenderTargetWidth, InspectSettings->RenderTargetHeight, PF_B8G8R8A8,
+	                               false);
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->UpdateResource();
 
@@ -183,10 +212,10 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	SceneCapture->RegisterComponent();
 	CaptureActor->SetRootComponent(SceneCapture);
 
-	SceneCapture->TextureTarget           = RenderTarget;
-	SceneCapture->CaptureSource           = SCS_FinalColorLDR;
-	SceneCapture->bCaptureEveryFrame      = true;
-	SceneCapture->bCaptureOnMovement      = true;
+	SceneCapture->TextureTarget = RenderTarget;
+	SceneCapture->CaptureSource = SCS_FinalColorLDR;
+	SceneCapture->bCaptureEveryFrame = true;
+	SceneCapture->bCaptureOnMovement = true;
 	SceneCapture->ShowFlags.SetAtmosphere(false);
 	SceneCapture->ShowFlags.SetFog(false);
 
@@ -198,7 +227,7 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Mesh proxy 
 	// Create a duplicate mesh in front of the capture camera.
-	
+
 	InspectMeshProxy = CreateMeshProxy(SourceMesh);
 
 	// Place mesh in front of capture camera

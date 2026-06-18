@@ -58,11 +58,23 @@ public:
 	UPrimitiveComponent* ResolveInspectMesh() const;
 
 protected:
+	
+	/**
+	* Override this class if you want specific widget class for this object's inspection
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|UI", meta=(AllowPrivateAcess="true"))
+	TSoftClassPtr<class UInspectWidget> CustomWidgetClass;
+	
+protected:
 	virtual void BeginPlay() override;
 
 public:	
+	
 	/** Cached resolved mesh so we don't search every frame. */
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> CachedMesh;
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|UI")
+	TSoftClassPtr<UInspectWidget> GetCustomWidgetClass() { return CustomWidgetClass; }
 		
 };

@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "InputActionValue.h"
+#include "InputTriggers.h"
 #include "InspectPlayerComponent.generated.h"
 
+struct FInputActionInstance;
+class UEnhancedInputLocalPlayerSubsystem;
 class UInputAction;
 class UInputMappingContext;
 class UInspectSubsystem;
@@ -38,67 +41,43 @@ public:
 	/** Mapping context added/removed with inspect mode. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
 	TObjectPtr<UInputMappingContext> InspectMappingContext;
+	
 
+public:
+	
+	UFUNCTION(BlueprintCallable, Category = "Inspect|Input")
+	void AddInputMappingContext(UInputMappingContext* Context, int32 Priority);
+	
+	UFUNCTION(BlueprintCallable, Category = "Inspect|Input")
+	void RemoveInputMappingContext(UInputMappingContext* Context);
+	
 	/** Priority for the mapping context. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
 	int32 InspectMappingPriority = 10;
-
-	/** Key that triggers inspect / exits inspect. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputAction> IA_Interact;
-
-	/** Mouse / stick drag → rotate. Axis2D. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputAction> IA_Rotate;
-
-	/** Scroll wheel / triggers → zoom. Axis1D. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputAction> IA_Zoom;
-
-	/** Middle-mouse drag / right stick → pan. Axis2D. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputAction> IA_Pan;
-
-	/** Reset transform to initial. Button. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputAction> IA_ResetTransform;
-
-	/** Close inspect. Button. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputAction> IA_CloseInspect;
-
-	// Range tracking (populated by InspectTriggerComponent delegates)
-
-	/** The actor currently in range, if any. Nullptr when out of range. */
-	UFUNCTION(BlueprintPure, Category = "Inspect")
-	AActor* GetNearestInspectable() const { return NearestInspectable.Get(); }
-
-
+	
 protected:
 	
-	virtual void BeginPlay() override;
-
-private:
-	// Runtime state
-	TWeakObjectPtr<AActor> NearestInspectable;
-
 	UPROPERTY(Transient)
 	TObjectPtr<APlayerController> OwningPC;
-
-	// Input callbacks 
-	void Input_Interact(const FInputActionValue& Value);
-	void Input_Rotate(const FInputActionValue& Value);
-	void Input_Zoom(const FInputActionValue& Value);
-	void Input_Pan(const FInputActionValue& Value);
-	void Input_ResetTransform(const FInputActionValue& Value);
-	void Input_CloseInspect(const FInputActionValue& Value);
 	
-	// Input mapping helpers 
+	UPROPERTY()
+	TObjectPtr<UEnhancedInputLocalPlayerSubsystem> InputSubsystem;
+	
+	UPROPERTY(Transient)
+	TArray<uint32> BoundActionHandles;
 
-	void AddInspectMappingContext();
-	void RemoveInspectMappingContext();
-	void BindInspectActions();
+protected:
+	virtual void BeginPlay() override;
+	
+	void BindActionsFromContext(UInputMappingContext* Context, ETriggerEvent TriggerEvent = ETriggerEvent::Triggered);
+	void UnbindAllActions();
 
+	UFUNCTION()
+	void DispatchInput(const UInputAction* InputAction, const FInputActionValue& ActionValue);
+	
+	UFUNCTION()
+	void OnInspectInputTriggered(const FInputActionInstance& ActionInstance);
+	
 	// Helpers 
 
 	UInspectSubsystem* GetInspectSubsystem() const;

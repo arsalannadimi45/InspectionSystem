@@ -40,11 +40,16 @@ public:
 	
 	UPROPERTY(EditAnywhere, Instanced)
 	TMap<TObjectPtr<UInputAction>, TObjectPtr<UInspectAction>> DefaultActions;
-	
-	//UPROPERTY(EditAnywhere, Config)
-	TSoftObjectPtr<UInputMappingContext> InspectMappingContext; // = FSoftObjectPath("InspectSystem/Input/IMC_Inspect.IMC_Inspect");
-	
-	
+
+	/**
+	 * Default Input Mapping Context for Inspect mode.
+	 * Applied when Inspect mode begins and removed when it ends.
+	 *
+	 * Expected to define all baseline input actions required for inspection interactions.
+	 */
+	UPROPERTY(EditAnywhere, Config)
+	TSoftObjectPtr<UInputMappingContext> DefaultInspectIMC;
+
 	
 public:
 	

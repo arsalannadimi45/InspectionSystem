@@ -6,6 +6,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "InspectSubsystem.generated.h"
 
+class UInspectPlayerComponent;
 class UInspectSession;
 struct FInputActionValue;
 class UInputAction;
@@ -57,13 +58,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Inspect")
 	bool IsInspecting() const { return CurrentSession != nullptr; }
-	
-	/**
- 	* Called by UInspectPlayerComponent (or any custom input source) every
- 	* time a bound Input Action fires during inspection.
- 	* Looks up the resolved action for this InputAction and executes it
- 	* against the current session.
-	*/
+
 
 protected:
 	
@@ -71,7 +66,7 @@ protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-private:
+protected:
 	
 	// Necessary references
 	
@@ -80,6 +75,9 @@ private:
 	
 	UPROPERTY(Transient)
 	TObjectPtr<APlayerController> OwningPC;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UInspectPlayerComponent> InspectPlayerComponent;
 	
 	UPROPERTY(Transient)
 	TObjectPtr<UInspectWidget> ActiveWidget;
