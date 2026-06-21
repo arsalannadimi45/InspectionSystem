@@ -2,6 +2,7 @@
 
 
 #include "Components/InspectPlayerComponent.h"
+#include "Core/InspectAction.h"
 #include "Core/InspectSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -73,26 +74,43 @@ void UInspectPlayerComponent::BeginPlay()
 	}
 }
 
-void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
+UEnhancedInputLocalPlayerSubsystem* UInspectPlayerComponent::GetInputSubsystem()
 {
-	if (!Context || !OwningPC)
+	if (InputSubsystem)
 	{
-		return;
+		return InputSubsystem;
+	}
+
+	if (!OwningPC)
+	{
+		return nullptr;
+	}
+
+	if (const ULocalPlayer* LocalPlayer = OwningPC->GetLocalPlayer())
+	{
+		InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	}
 
 	if (!InputSubsystem)
 	{
-		if (const ULocalPlayer* LocalPlayer = OwningPC->GetLocalPlayer())
-		{
-			InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-		}
-		if (!InputSubsystem)
-		{
-			return;
-		}
+		UE_LOG(LogTemp, Warning,
+			TEXT("[UInspectPlayerComponent] No UEnhancedInputLocalPlayerSubsystem found on owning PlayerController's LocalPlayer."));
 	}
 
-	InputSubsystem->AddMappingContext(Context, Priority);
+	return InputSubsystem;
+}
+
+void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
+{
+	if (!Context)
+	{
+		return;
+	}
+
+	if (UEnhancedInputLocalPlayerSubsystem* EI = GetInputSubsystem())
+	{
+		EI->AddMappingContext(Context, Priority);
+	}
 }
 
 void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Context)
@@ -102,35 +120,45 @@ void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Co
 		return;
 	}
 
-	if (!InputSubsystem)
+	if (UEnhancedInputLocalPlayerSubsystem* EI = GetInputSubsystem())
 	{
-		if (const ULocalPlayer* LocalPlayer = OwningPC->GetLocalPlayer())
-		{
-			InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-		}
-
-		if (!InputSubsystem)
-		{
-			return;
-		}
+		EI->RemoveMappingContext(Context);
 	}
-
-	InputSubsystem->RemoveMappingContext(Context);
-	UE_LOG(LogTemp, Error, TEXT("[UInspectPlayerComponent::AddInputMappingContext] Removed Mapping Context %s"), *Context->GetFullName())
-	
 }
 
 void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[UInspectPlayerComponent::BindActionMapping]"));
-	
+	if (!OwningPC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectPlayerComponent::BindActionMapping] No OwningPC, cannot bind."));
+		return;
+	}
+
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC->InputComponent);
-	if (!EIC) return;
+	if (!EIC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectPlayerComponent::BindActionMapping] OwningPC has no EnhancedInputComponent."));
+		return;
+	}
+
+	// Re-entrancy guard: if a previous BeginInspect's bindings weren't torn
+	// down (e.g. a missed EndInspect), binding again on top would silently
+	// stack duplicate handles and fire actions multiple times per input.
+	if (BoundActionHandles.Num() > 0)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[UInspectPlayerComponent::BindActionMapping] Bindings already active; unbinding stale set before rebinding."));
+		UnbindAllActions();
+	}
 
 	for (const auto& Pair : ActionMapping)
 	{
 		const UInputAction* IA = Pair.Key;
-		if (!IA) continue;
+		const TSubclassOf<UInspectAction> ActionClass = Pair.Value;
+		if (!IA || !ActionClass)
+		{
+			continue;
+		}
 
 		FEnhancedInputActionEventBinding& Binding = EIC->BindAction(
 			IA,

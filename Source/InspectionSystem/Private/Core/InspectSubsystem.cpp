@@ -3,14 +3,17 @@
 
 #include "Core/InspectSubsystem.h"
 
+#include "Core/InspectAction.h"
 #include "Core/InspectDataAsset.h"
 #include "Interface/Inspectable.h"
 #include "UI/InspectWidget.h"
 
 #include "Components/SceneCaptureComponent2D.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/InspectableComponent.h"
 #include "Components/InspectPlayerComponent.h"
@@ -46,10 +49,21 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
+	// Re-entrancy guard: starting a new inspect while one is already active
+	// would leak the previous session's capture actor/widget/bindings and,
+	// combined with the player component's additive binding, double-fire
+	// input. Callers must EndInspect() first.
+	if (IsInspecting())
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[UInspectSubsystem::BeginInspect] Already inspecting %s; call EndInspect() before starting a new session."),
+			*CurrentSession->InspectedComponent->GetOwner()->GetName());
+		return false;
+	}
+
 	// Get default settings from Project Settings
 	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
 
-	// Find InspectableComponent in 
 	UInspectableComponent* InspectComp = ActorToInspect->FindComponentByClass<UInspectableComponent>();
 	if (!InspectComp)
 	{
@@ -81,20 +95,22 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
-
-	// Cache the player controller
-	OwningPC = RequestingPC;
-	InspectPlayerComponent = OwningPC->FindComponentByClass<UInspectPlayerComponent>();
-	if (!InspectPlayerComponent)
+	UInspectPlayerComponent* RequestedPlayerComponent = RequestingPC->FindComponentByClass<UInspectPlayerComponent>();
+	if (!RequestedPlayerComponent)
 	{
 		UE_LOG(
-	LogTemp,
-	Warning,
-	TEXT("[UInspectSubsystem::BeginInspect] No UInspectPlayerComponent found on %s."),
-	*OwningPC->GetName());
+			LogTemp,
+			Warning,
+			TEXT("[UInspectSubsystem::BeginInspect] No UInspectPlayerComponent found on %s."),
+			*RequestingPC->GetName());
 		return false;
 	}
 
+	// Cache the player controller / player component only after every
+	// failure-prone lookup above has succeeded, so a failed BeginInspect
+	// never leaves the subsystem half-initialized.
+	OwningPC = RequestingPC;
+	InspectPlayerComponent = RequestedPlayerComponent;
 
 	// Notify source actor 
 	IInspectable::Execute_OnInspectBegin(InspectComp);
@@ -143,19 +159,24 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	RequestingPC->SetInputMode(InputMode);
 	RequestingPC->SetShowMouseCursor(true);
 	
-	// Add Input Mappings
 	HandleInputMappings(CurrentSession->InspectedComponent, true);
-	// TODO: Add Custom Mappings too
 	
 	return true;
 }
 
 void UInspectSubsystem::EndInspect()
 {
-	if (CurrentSession && CurrentSession->InspectedComponent)
+	if (!IsInspecting())
+	{
+		return;
+	}
+
+	if (CurrentSession->InspectedComponent)
 	{
 		// Remove Input Mappings
 		HandleInputMappings(CurrentSession->InspectedComponent, false);
+
+		IInspectable::Execute_OnInspectEnd(CurrentSession->InspectedComponent);
 	}
 	
 	// Remove UI 
@@ -176,20 +197,21 @@ void UInspectSubsystem::EndInspect()
 	}
 	
 	// Clear references
+	CurrentSession = nullptr;
 	OwningPC = nullptr;
 	InspectPlayerComponent = nullptr;
 }
 
 void UInspectSubsystem::DispatchInput(const UInputAction* SourceInputAction, FInputActionValue Value)
 {
-	if (!SourceInputAction)
+	if (!SourceInputAction || !CurrentSession)
 	{
 		return;
 	}
 
-	if (TSubclassOf<UInspectAction>* FoundActionClass = CurrentInspectActionMap.Find(SourceInputAction))
+	if (const TSubclassOf<UInspectAction>* FoundActionClass = CurrentInspectActionMap.Find(SourceInputAction))
 	{
-		if (const auto& FoundAction = CurrentSession->GetOrCreateActionInstance(*FoundActionClass))
+		if (UInspectAction* FoundAction = CurrentSession->GetOrCreateActionInstance(*FoundActionClass))
 		{
 			if (FoundAction->CanExecute(CurrentSession))
 			{
@@ -221,8 +243,11 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Render target 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(CaptureActor);
-	RenderTarget->InitCustomFormat(InspectSettings->RenderTargetWidth, InspectSettings->RenderTargetHeight, PF_B8G8R8A8,
-	                               false);
+	RenderTarget->InitCustomFormat(
+		InspectSettings->RenderTargetWidth,
+		InspectSettings->RenderTargetHeight,
+		PF_B8G8R8A8,
+		false);
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->UpdateResource();
 
@@ -244,13 +269,19 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	SceneCapture->SetWorldRotation(FRotator(-10.0f, 0.0f, 0.0f));
 	SceneCapture->FOVAngle = 35.0f; // Tighter FOV = less distortion on items
 
-	// Mesh proxy 
-	// Create a duplicate mesh in front of the capture camera.
-
+	// Mesh proxy: a duplicate mesh placed in front of the capture camera.
 	InspectMeshProxy = CreateMeshProxy(SourceMesh);
 
-	// Place mesh in front of capture camera
-	InspectMeshProxy->SetRelativeLocation(FVector(100.0f, 0.0f, 0.0f));
+	if (InspectMeshProxy)
+	{
+		InspectMeshProxy->SetRelativeLocation(FVector(100.0f, 0.0f, 0.0f));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[UInspectSubsystem::SetupCaptureActor] Failed to create mesh proxy for %s (unsupported mesh type)."),
+			*SourceMesh->GetName());
+	}
 }
 
 void UInspectSubsystem::TeardownCaptureActor()
@@ -273,51 +304,76 @@ void UInspectSubsystem::TeardownCaptureActor()
 	RenderTarget = nullptr;
 }
 
-void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComponent, bool AddInspectMappings)
+void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComponent, bool bAddInspectMappings)
 {
-	const auto& InspectMapping = InspectedComponent->GetInspectActionMapping();
-	if (AddInspectMappings)
+	if (!InspectedComponent || !InspectPlayerComponent)
 	{
-		// Add the default input mapping context if required
-		if (InspectedComponent->ShouldUseDefaultInspectMapping())
+		return;
+	}
+
+	const FInspectMapping& ItemMapping = InspectedComponent->GetInspectActionMapping();
+	const bool bUseDefault = InspectedComponent->ShouldUseDefaultInspectMapping();
+
+	if (bAddInspectMappings)
+	{
+		if (bUseDefault && InspectPlayerComponent->DefaultInspectMapping.InputMappingContext)
 		{
 			InspectPlayerComponent->AddInputMappingContext(
-					InspectPlayerComponent->DefaultInspectMapping.InputMappingContext,
-					InspectPlayerComponent->DefaultInspectMapping.Priority);
-			
-			CurrentInspectActionMap.Append(
-				InspectPlayerComponent->DefaultInspectMapping.ActionMapping);
+				InspectPlayerComponent->DefaultInspectMapping.InputMappingContext,
+				InspectPlayerComponent->DefaultInspectMapping.Priority);
 		}
-		
-		// Add additional input mapping context
-		InspectPlayerComponent->AddInputMappingContext(
-			InspectMapping.InputMappingContext,
-			InspectMapping.Priority);
-		
-		CurrentInspectActionMap.Append(InspectMapping.ActionMapping);
-		
+
+		if (ItemMapping.InputMappingContext)
+		{
+			InspectPlayerComponent->AddInputMappingContext(
+				ItemMapping.InputMappingContext,
+				ItemMapping.Priority);
+		}
+
+		// Item-specific bindings always win over default bindings for the
+		// same UInputAction. This is the sole place this merge happens —
+		// UInspectPlayerComponent only ever sees the final, flat result.
+		CurrentInspectActionMap = ResolveActionMapping(
+			bUseDefault ? InspectPlayerComponent->DefaultInspectMapping.ActionMapping : 
+			TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>(),
+			ItemMapping.ActionMapping);
+
 		InspectPlayerComponent->BindActionMapping(CurrentInspectActionMap);
 	}
 	else
 	{
-		// Add the default input mapping context if required
-		if (InspectedComponent->ShouldUseDefaultInspectMapping())
+		if (bUseDefault)
 		{
 			InspectPlayerComponent->RemoveInputMappingContext(
-					InspectPlayerComponent->DefaultInspectMapping.InputMappingContext);
+				InspectPlayerComponent->DefaultInspectMapping.InputMappingContext);
 		}
-		
-		// Add additional input mapping context
-		InspectPlayerComponent->RemoveInputMappingContext(
-			InspectMapping.InputMappingContext);
-		
+
+		InspectPlayerComponent->RemoveInputMappingContext(ItemMapping.InputMappingContext);
+
 		InspectPlayerComponent->UnbindAllActions();
-		
+
 		CurrentInspectActionMap.Empty();
 	}
 }
 
-UStaticMeshComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* SourceMesh) const
+TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> UInspectSubsystem::ResolveActionMapping(
+	const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& DefaultMapping,
+	const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ItemMapping)
+{
+	TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> Result = DefaultMapping;
+
+	// Explicit overwrite, not Append() — item-specific entries must win on
+	// key collision, and that has to be true regardless of TMap's internal
+	// merge semantics.
+	for (const auto& Pair : ItemMapping)
+	{
+		Result.Add(Pair.Key, Pair.Value);
+	}
+
+	return Result;
+}
+
+UPrimitiveComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* SourceMesh) const
 {
 	if (!CaptureActor || !SourceMesh)
 	{
@@ -326,7 +382,23 @@ UStaticMeshComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* So
 
 	USceneComponent* ProxyRoot = CaptureActor->GetRootComponent();
 
-	// Static Mesh case
+	if (const USkeletalMeshComponent* SrcSkeletal = Cast<USkeletalMeshComponent>(SourceMesh))
+	{
+		USkeletalMeshComponent* Proxy = NewObject<USkeletalMeshComponent>(CaptureActor);
+
+		Proxy->SetSkeletalMesh(SrcSkeletal->GetSkeletalMeshAsset());
+
+		for (int32 i = 0; i < SrcSkeletal->GetNumMaterials(); ++i)
+		{
+			Proxy->SetMaterial(i, SrcSkeletal->GetMaterial(i));
+		}
+
+		Proxy->SetupAttachment(ProxyRoot);
+		Proxy->RegisterComponent();
+
+		return Proxy;
+	}
+
 	if (const UStaticMeshComponent* SrcStatic = Cast<UStaticMeshComponent>(SourceMesh))
 	{
 		UStaticMeshComponent* Proxy = NewObject<UStaticMeshComponent>(CaptureActor);

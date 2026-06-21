@@ -63,8 +63,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Input")
 	void RemoveInputMappingContext(UInputMappingContext* Context);
 	
+	/**
+	 * Binds Enhanced Input actions to forward into the InspectSubsystem.
+	 * @param ActionMapping  Final, already-resolved map (subsystem is
+	 *                       responsible for merging default + per-item maps
+	 *                       before calling this). Each binding uses the
+	 *                       trigger event declared by the corresponding
+	 *                       UInspectAction's CDO.
+	 */
 	void BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping);
+ 
+	/** Unbinds everything bound by the most recent BindActionMapping call. Safe to call repeatedly / when nothing is bound. */
 	void UnbindAllActions();
+ 
+	/** True if BindActionMapping has bindings currently active. Used by the subsystem as a re-entrancy guard. */
+	bool HasActiveBindings() const { return BoundActionHandles.Num() > 0; }
+	
 	
 protected:
 	
@@ -82,8 +96,11 @@ protected:
 	
 	UFUNCTION()
 	void OnInspectInputTriggered(const FInputActionInstance& ActionInstance);
+ 
+	/** Lazily resolves InputSubsystem from the owning PlayerController's LocalPlayer. Logs once on failure. */
+	UEnhancedInputLocalPlayerSubsystem* GetInputSubsystem();
 	
 	// Helpers 
-
+ 
 	UInspectSubsystem* GetInspectSubsystem() const;
 };
