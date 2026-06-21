@@ -75,7 +75,7 @@ void UInspectPlayerComponent::BeginPlay()
 
 void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
 {
-	if (!Context || OwningPC)
+	if (!Context || !OwningPC)
 	{
 		return;
 	}
@@ -116,10 +116,14 @@ void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Co
 	}
 
 	InputSubsystem->RemoveMappingContext(Context);
+	UE_LOG(LogTemp, Error, TEXT("[UInspectPlayerComponent::AddInputMappingContext] Removed Mapping Context %s"), *Context->GetFullName())
+	
 }
 
 void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[UInspectPlayerComponent::BindActionMapping]"));
+	
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC->InputComponent);
 	if (!EIC) return;
 

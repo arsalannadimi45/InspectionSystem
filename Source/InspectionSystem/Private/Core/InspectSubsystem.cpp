@@ -275,7 +275,6 @@ void UInspectSubsystem::TeardownCaptureActor()
 
 void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComponent, bool AddInspectMappings)
 {
-
 	const auto& InspectMapping = InspectedComponent->GetInspectActionMapping();
 	if (AddInspectMappings)
 	{
