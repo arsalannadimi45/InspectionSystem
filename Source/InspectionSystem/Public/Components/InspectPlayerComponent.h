@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "InputActionValue.h"
 #include "InputTriggers.h"
+#include "Core/InspectTypes.h"
 #include "InspectPlayerComponent.generated.h"
 
 struct FInputActionInstance;
@@ -36,12 +37,23 @@ class INSPECTIONSYSTEM_API UInspectPlayerComponent : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UInspectPlayerComponent();
+	
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void RefreshActionMapping();
+#endif
+	
 
 	// Enhanced Input 
-	/** Mapping context added/removed with inspect mode. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	TObjectPtr<UInputMappingContext> InspectMappingContext;
-	
+
+	/**
+ 	* Default inspection input setup.
+ 	* Any Input Mapping Contexts and Input Action → Inspect Action bindings
+ 	* defined here are registered as the default inspection mapping
+ 	* when this object is inspected.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|Input")
+	FInspectMapping DefaultInspectMapping;
 
 public:
 	
@@ -51,9 +63,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Input")
 	void RemoveInputMappingContext(UInputMappingContext* Context);
 	
-	/** Priority for the mapping context. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Input")
-	int32 InspectMappingPriority = 10;
+	void BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping);
+	void UnbindAllActions();
 	
 protected:
 	
@@ -68,12 +79,6 @@ protected:
 
 protected:
 	virtual void BeginPlay() override;
-	
-	void BindActionsFromContext(UInputMappingContext* Context, ETriggerEvent TriggerEvent = ETriggerEvent::Triggered);
-	void UnbindAllActions();
-
-	UFUNCTION()
-	void DispatchInput(const UInputAction* InputAction, const FInputActionValue& ActionValue);
 	
 	UFUNCTION()
 	void OnInspectInputTriggered(const FInputActionInstance& ActionInstance);

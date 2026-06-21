@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Core/InspectTypes.h"
 #include "Interface/Inspectable.h"
 #include "InspectableComponent.generated.h"
 
+class UInputAction;
+class UInputMappingContext;
 class UInspectDataAsset;
-class UInspectTriggerComponent;
 
 /**
  * UInspectableComponent
@@ -28,7 +30,41 @@ public:
 	
 	UInspectableComponent();
 	
-	// Configuration 
+	// IInspectable 
+
+	virtual UInspectDataAsset* GetInspectData_Implementation() const override;
+	virtual void OnInspectBegin_Implementation() override;
+	virtual void OnInspectEnd_Implementation() override;
+	virtual UPrimitiveComponent* GetInspectMeshOverride_Implementation() const override;
+	
+protected:
+	
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void RefreshActionMapping();
+#endif
+	
+	// Input Configuration
+
+	/** 
+	 * When enabled, this inspectable uses the default inspection input setup
+	 * defined in the plugin settings. This includes registering the default
+	 * Input Mapping Context and its associated Inspect Action bindings when
+	 * inspection begins.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|Input")
+	bool bUseDefaultInspectMapping = true;
+
+	/**
+	 * Optional object-specific inspection input setup.
+	 * Any Input Mapping Contexts and Input Action → Inspect Action bindings
+	 * defined here are registered in addition to the default inspection mapping
+	 * when this object is inspected.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|Input")
+	FInspectMapping AdditionalInspectMapping;
+	
+	// Generic Data
 	
 	/** The data asset controlling this object's inspect behavior. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect")
@@ -41,13 +77,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect")
 	TObjectPtr<UPrimitiveComponent> MeshOverride;
 
-	// IInspectable 
-
-	virtual UInspectDataAsset* GetInspectData_Implementation() const override;
-	virtual void OnInspectBegin_Implementation() override;
-	virtual void OnInspectEnd_Implementation() override;
-	virtual UPrimitiveComponent* GetInspectMeshOverride_Implementation() const override;
-
 	// Helpers 
 
 	/**
@@ -56,8 +85,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inspect")
 	UPrimitiveComponent* ResolveInspectMesh() const;
-
-protected:
 	
 	/**
 	* Override this class if you want specific widget class for this object's inspection
@@ -65,16 +92,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|UI", meta=(AllowPrivateAcess="true"))
 	TSoftClassPtr<class UInspectWidget> CustomWidgetClass;
 	
-protected:
-	virtual void BeginPlay() override;
-
-public:	
-	
 	/** Cached resolved mesh so we don't search every frame. */
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> CachedMesh;
 	
+protected:
+	virtual void BeginPlay() override;
+	
+public:	
+	
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|UI")
 	TSoftClassPtr<UInspectWidget> GetCustomWidgetClass() { return CustomWidgetClass; }
 		
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")	
+	const FInspectMapping& GetInspectActionMapping() const { return AdditionalInspectMapping; }
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")
+	bool ShouldUseDefaultInspectMapping() {return bUseDefaultInspectMapping;};
 };

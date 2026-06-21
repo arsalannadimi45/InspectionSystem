@@ -1,6 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Core/InspectSession.h"
+
+#include "InputAction.h"
+#include "Components/InspectableComponent.h"
 #include "Core/InspectDataAsset.h"
 
 
@@ -81,4 +84,21 @@ void UInspectSession::ResetTransform()
 	ProxyMesh->SetRelativeRotation(CurrentRotation);
 	ProxyMesh->SetRelativeScale3D(FVector(CurrentZoom));
 
+}
+
+UInspectAction* UInspectSession::GetOrCreateActionInstance(TSubclassOf<UInspectAction> ActionClass)
+{
+	if (!ActionClass)
+	{
+		return nullptr;
+	}
+
+	if (TObjectPtr<UInspectAction>* Found = ActionInstances.Find(ActionClass))
+	{
+		return *Found;
+	}
+
+	UInspectAction* NewInstance = NewObject<UInspectAction>(this, ActionClass);
+	ActionInstances.Add(ActionClass, NewInstance);
+	return NewInstance;
 }

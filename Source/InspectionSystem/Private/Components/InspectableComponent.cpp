@@ -1,6 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Components/InspectableComponent.h"
+
+#include "EnhancedActionKeyMapping.h"
+#include "InputMappingContext.h"
 #include "Core/InspectDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -9,6 +12,49 @@ UInspectableComponent::UInspectableComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
+
+#if WITH_EDITOR
+void UInspectableComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName =
+		PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName ==
+		GET_MEMBER_NAME_CHECKED(FInspectMapping, InputMappingContext))
+	{
+		RefreshActionMapping();
+	}
+}
+
+void UInspectableComponent::RefreshActionMapping()
+{
+	AdditionalInspectMapping.ActionMapping.Empty();
+
+	if (!AdditionalInspectMapping.InputMappingContext)
+	{
+		return;
+	}
+
+	TSet<const UInputAction*> UniqueActions;
+
+	for (const FEnhancedActionKeyMapping& Mapping :
+		 AdditionalInspectMapping.InputMappingContext->GetMappings())
+	{
+		if (Mapping.Action)
+		{
+			UniqueActions.Add(Mapping.Action.Get());
+		}
+	}
+
+	for (const UInputAction* Action : UniqueActions)
+	{
+		AdditionalInspectMapping.ActionMapping.FindOrAdd(
+			const_cast<UInputAction*>(Action));
+	}
+}
+#endif
 
 
 // Called when the game starts
@@ -29,8 +75,7 @@ UInspectDataAsset* UInspectableComponent::GetInspectData_Implementation() const
 
 void UInspectableComponent::OnInspectBegin_Implementation()
 {
-	// Default: do nothing. Blueprints can override to hide world mesh,
-	// play VO, update quest state, etc.
+	// Default: do nothing. Blueprints can override to hide world mesh, play VO, update quest state, etc.
 }
 
 void UInspectableComponent::OnInspectEnd_Implementation()

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "InspectSession.generated.h"
 
+class UInspectableComponent;
+class UInspectAction;
 class UInspectDataAsset;
 class UInspectSubsystem;
 
@@ -27,7 +29,7 @@ public:
 	TObjectPtr<UInspectSubsystem> Subsystem;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
-	TObjectPtr<AActor> SourceActor;
+	TObjectPtr<UInspectableComponent> InspectedComponent;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
 	TObjectPtr<UInspectDataAsset> Data;
@@ -84,7 +86,9 @@ public:
  
 	UFUNCTION(BlueprintPure, Category = "Inspect|Session|Transform")
 	float GetZoom() const { return CurrentZoom; }
-	
+
+	UFUNCTION(BlueprintCallable)
+	UInspectAction* GetOrCreateActionInstance(TSubclassOf<UInspectAction> ActionClass);
 
 private:
 	
@@ -100,4 +104,7 @@ private:
 	FRotator InitialRotation = FRotator::ZeroRotator;
 	
 	float InitialZoom = 1.0f;
+	
+	UPROPERTY()
+	TMap<TSubclassOf<UInspectAction>, TObjectPtr<UInspectAction>> ActionInstances;
 };

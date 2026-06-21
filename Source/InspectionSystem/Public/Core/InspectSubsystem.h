@@ -6,6 +6,8 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "InspectSubsystem.generated.h"
 
+class UInspectAction;
+class UInspectableComponent;
 class UInspectPlayerComponent;
 class UInspectSession;
 struct FInputActionValue;
@@ -58,7 +60,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Inspect")
 	bool IsInspecting() const { return CurrentSession != nullptr; }
-
+	
+	UFUNCTION(BlueprintCallable, Category = "Inspect")
+	void DispatchInput(const UInputAction* SourceInputAction, FInputActionValue Value);
 
 protected:
 	
@@ -81,6 +85,8 @@ protected:
 	
 	UPROPERTY(Transient)
 	TObjectPtr<UInspectWidget> ActiveWidget;
+	
+	TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> CurrentInspectActionMap;
 
 	// Scene capture setup for the isolated render 
 
@@ -102,7 +108,9 @@ protected:
 
 	void SetupCaptureActor(UPrimitiveComponent* SourceMesh);
 	void TeardownCaptureActor();
-
+	
+	void HandleInputMappings(UInspectableComponent* InspectedComponent, bool AddInspectMappings);
+	
 	UStaticMeshComponent* CreateMeshProxy(UPrimitiveComponent* SourceMesh) const;
 	
 };

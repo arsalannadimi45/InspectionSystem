@@ -7,6 +7,7 @@
 #include "InputMappingContext.h"
 #include "InspectAction.h"
 #include "Engine/DeveloperSettings.h"
+#include "Core/InspectTypes.h"
 #include "InspectSettings.generated.h"
 
 /**
@@ -37,19 +38,6 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category="UI")
 	TSoftClassPtr<class UInspectWidget> InspectWidgetClass;
-	
-	UPROPERTY(EditAnywhere, Instanced)
-	TMap<TObjectPtr<UInputAction>, TObjectPtr<UInspectAction>> DefaultActions;
-
-	/**
-	 * Default Input Mapping Context for Inspect mode.
-	 * Applied when Inspect mode begins and removed when it ends.
-	 *
-	 * Expected to define all baseline input actions required for inspection interactions.
-	 */
-	UPROPERTY(EditAnywhere, Config)
-	TSoftObjectPtr<UInputMappingContext> DefaultInspectIMC;
-
 	
 public:
 	

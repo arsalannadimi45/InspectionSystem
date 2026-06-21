@@ -109,7 +109,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 
 	CurrentSession = NewObject<UInspectSession>(this, SessionClass);
 
-	CurrentSession->SourceActor = ActorToInspect;
+	CurrentSession->InspectedComponent = InspectComp;
 	CurrentSession->Data = Data;
 	CurrentSession->OwningPC = OwningPC;
 	CurrentSession->ProxyMesh = InspectMeshProxy;
@@ -144,7 +144,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	RequestingPC->SetShowMouseCursor(true);
 	
 	// Add Input Mappings
-	InspectPlayerComponent->AddInputMappingContext(InspectSettings->DefaultInspectIMC.LoadSynchronous(), 100);
+	HandleInputMappings(CurrentSession->InspectedComponent, true);
 	// TODO: Add Custom Mappings too
 	
 	return true;
@@ -152,6 +152,12 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 
 void UInspectSubsystem::EndInspect()
 {
+	if (CurrentSession && CurrentSession->InspectedComponent)
+	{
+		// Remove Input Mappings
+		HandleInputMappings(CurrentSession->InspectedComponent, false);
+	}
+	
 	// Remove UI 
 	if (ActiveWidget)
 	{
@@ -169,15 +175,28 @@ void UInspectSubsystem::EndInspect()
 		OwningPC->SetShowMouseCursor(false);
 	}
 	
-	// Get default settings from Project Settings
-	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
-	
-	// Remove Input Mappings
-	InspectPlayerComponent->RemoveInputMappingContext(InspectSettings->DefaultInspectIMC.LoadSynchronous());
-
 	// Clear references
 	OwningPC = nullptr;
 	InspectPlayerComponent = nullptr;
+}
+
+void UInspectSubsystem::DispatchInput(const UInputAction* SourceInputAction, FInputActionValue Value)
+{
+	if (!SourceInputAction)
+	{
+		return;
+	}
+
+	if (TSubclassOf<UInspectAction>* FoundActionClass = CurrentInspectActionMap.Find(SourceInputAction))
+	{
+		if (const auto& FoundAction = CurrentSession->GetOrCreateActionInstance(*FoundActionClass))
+		{
+			if (FoundAction->CanExecute(CurrentSession))
+			{
+				FoundAction->Execute(CurrentSession, Value);
+			}
+		}
+	}
 }
 
 // Private helpers
@@ -252,6 +271,51 @@ void UInspectSubsystem::TeardownCaptureActor()
 		CaptureActor = nullptr;
 	}
 	RenderTarget = nullptr;
+}
+
+void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComponent, bool AddInspectMappings)
+{
+
+	const auto& InspectMapping = InspectedComponent->GetInspectActionMapping();
+	if (AddInspectMappings)
+	{
+		// Add the default input mapping context if required
+		if (InspectedComponent->ShouldUseDefaultInspectMapping())
+		{
+			InspectPlayerComponent->AddInputMappingContext(
+					InspectPlayerComponent->DefaultInspectMapping.InputMappingContext,
+					InspectPlayerComponent->DefaultInspectMapping.Priority);
+			
+			CurrentInspectActionMap.Append(
+				InspectPlayerComponent->DefaultInspectMapping.ActionMapping);
+		}
+		
+		// Add additional input mapping context
+		InspectPlayerComponent->AddInputMappingContext(
+			InspectMapping.InputMappingContext,
+			InspectMapping.Priority);
+		
+		CurrentInspectActionMap.Append(InspectMapping.ActionMapping);
+		
+		InspectPlayerComponent->BindActionMapping(CurrentInspectActionMap);
+	}
+	else
+	{
+		// Add the default input mapping context if required
+		if (InspectedComponent->ShouldUseDefaultInspectMapping())
+		{
+			InspectPlayerComponent->RemoveInputMappingContext(
+					InspectPlayerComponent->DefaultInspectMapping.InputMappingContext);
+		}
+		
+		// Add additional input mapping context
+		InspectPlayerComponent->RemoveInputMappingContext(
+			InspectMapping.InputMappingContext);
+		
+		InspectPlayerComponent->UnbindAllActions();
+		
+		CurrentInspectActionMap.Empty();
+	}
 }
 
 UStaticMeshComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* SourceMesh) const

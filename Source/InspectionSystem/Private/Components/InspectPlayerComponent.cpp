@@ -15,16 +15,67 @@ UInspectPlayerComponent::UInspectPlayerComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+#if WITH_EDITOR
+
+void UInspectPlayerComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName =
+		PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName ==
+		GET_MEMBER_NAME_CHECKED(FInspectMapping, InputMappingContext))
+	{
+		RefreshActionMapping();
+	}
+}
+
+void UInspectPlayerComponent::RefreshActionMapping()
+{
+	DefaultInspectMapping.ActionMapping.Empty();
+
+	if (!DefaultInspectMapping.InputMappingContext)
+	{
+		return;
+	}
+
+	TSet<const UInputAction*> UniqueActions;
+
+	for (const FEnhancedActionKeyMapping& Mapping :
+		 DefaultInspectMapping.InputMappingContext->GetMappings())
+	{
+		if (Mapping.Action)
+		{
+			UniqueActions.Add(Mapping.Action.Get());
+		}
+	}
+
+	for (const UInputAction* Action : UniqueActions)
+	{
+		DefaultInspectMapping.ActionMapping.FindOrAdd(
+			const_cast<UInputAction*>(Action));
+	}
+}
+#endif
+
+
 // Lifecycle
 
 void UInspectPlayerComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	OwningPC = Cast<APlayerController>(GetOwner());
+	if (!OwningPC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[UInspectPlayerComponent::BeginPlay] InspectPlayerComponent must be attached to the Player Controller."))
+	}
 }
 
 void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
 {
-	if (!Context)
+	if (!Context || OwningPC)
 	{
 		return;
 	}
@@ -57,7 +108,7 @@ void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Co
 		{
 			InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 		}
-		
+
 		if (!InputSubsystem)
 		{
 			return;
@@ -67,32 +118,22 @@ void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Co
 	InputSubsystem->RemoveMappingContext(Context);
 }
 
-void UInspectPlayerComponent::BindActionsFromContext(UInputMappingContext* Context, ETriggerEvent TriggerEvent)
+void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping)
 {
-	if (!Context || !OwningPC)
-	{
-		return;
-	}
-
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC->InputComponent);
-	if (!EIC)
-	{
-		return;
-	}
+	if (!EIC) return;
 
-	TSet<const UInputAction*> UniqueActions;
-	for (const FEnhancedActionKeyMapping& Mapping : Context->GetMappings())
+	for (const auto& Pair : ActionMapping)
 	{
-		if (Mapping.Action)
-		{
-			UniqueActions.Add(Mapping.Action);
-		}
-	}
+		const UInputAction* IA = Pair.Key;
+		if (!IA) continue;
 
-	for (const UInputAction* Action : UniqueActions)
-	{
-		FEnhancedInputActionEventBinding& Binding =
-			EIC->BindAction(Action, TriggerEvent, this, &UInspectPlayerComponent::OnInspectInputTriggered);
+		FEnhancedInputActionEventBinding& Binding = EIC->BindAction(
+			IA,
+			ETriggerEvent::Triggered,
+			this,
+			&UInspectPlayerComponent::OnInspectInputTriggered
+		);
 
 		BoundActionHandles.Add(Binding.GetHandle());
 	}
@@ -112,12 +153,10 @@ void UInspectPlayerComponent::UnbindAllActions()
 
 void UInspectPlayerComponent::OnInspectInputTriggered(const FInputActionInstance& ActionInstance)
 {
-	DispatchInput(ActionInstance.GetSourceAction(), ActionInstance.GetValue());
-}
-
-void UInspectPlayerComponent::DispatchInput(const UInputAction* InputAction, const FInputActionValue& ActionValue)
-{
-	// Dispatch Inputs to Subsystem to decide which action should be done
+	if (UInspectSubsystem* InspectSubsystem = GetInspectSubsystem())
+	{
+		InspectSubsystem->DispatchInput(ActionInstance.GetSourceAction(), ActionInstance.GetValue());
+	}
 }
 
 // Helpers
