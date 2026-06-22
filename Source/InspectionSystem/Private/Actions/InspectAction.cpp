@@ -1,17 +1,16 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Core/InspectAction.h"
-
+#include "Actions/InspectAction.h"
 #include "Core/InspectSession.h"
 
-bool UInspectAction::CanExecute_Implementation(const UInspectSession* InspectSession) const
+bool UInspectAction::CanExecute_Implementation(UInspectSession* InspectSession) const
 {
-	return true;
+	return InspectSession != nullptr;
 }
 
 void UInspectAction::Execute_Implementation(
-	const UInspectSession* InspectSession,
+	UInspectSession* InspectSession,
 	FInputActionValue Value)
 {
 }

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputActionValue.h"
-#include "InspectSubsystem.h"
+#include "Core/InspectSubsystem.h"
 #include "InspectAction.generated.h"
 
 class UInspectSession;
@@ -14,10 +14,11 @@ class INSPECTIONSYSTEM_API UInspectAction : public UObject
 {
 	GENERATED_BODY()
 public:
-
+	
 	UFUNCTION(BlueprintNativeEvent)
-	void Execute(const UInspectSession* InspectSession, FInputActionValue InputValue);
-
+	bool CanExecute(UInspectSession* InspectSession) const;
+	
 	UFUNCTION(BlueprintNativeEvent)
-	bool CanExecute(const UInspectSession* InspectSession) const;
+	void Execute(UInspectSession* InspectSession, FInputActionValue InputValue);
+
 };

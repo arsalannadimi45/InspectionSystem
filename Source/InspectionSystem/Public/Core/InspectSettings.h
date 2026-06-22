@@ -3,11 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InputAction.h"
-#include "InputMappingContext.h"
-#include "InspectAction.h"
 #include "Engine/DeveloperSettings.h"
-#include "Core/InspectTypes.h"
 #include "InspectSettings.generated.h"
 
 /**

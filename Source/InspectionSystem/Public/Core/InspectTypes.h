@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
-#include "InspectAction.h"
+#include "Actions/InspectAction.h"
 #include "InspectTypes.generated.h"
 
 USTRUCT(BlueprintType, Blueprintable)

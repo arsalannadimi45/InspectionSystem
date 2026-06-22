@@ -7,15 +7,30 @@
 #include "Core/InspectDataAsset.h"
 
 
-void UInspectSession::InitSession_Implementation()
+void UInspectSession::OnSessionStart_Implementation()
 {
 	InitialRotation = CurrentRotation;
 	InitialZoom     = CurrentZoom;
 }
  
-void UInspectSession::TerminateSession_Implementation()
+void UInspectSession::OnSessionEnd_Implementation()
 {
 	// Override in subclasses for custom cleanup.
+}
+
+void UInspectSession::Initialize(UInspectSubsystem* InSubsystem, UInspectableComponent* InComponent,
+	UInspectDataAsset* InData, APlayerController* InPC, UPrimitiveComponent* InProxyMesh)
+{
+	Subsystem = InSubsystem;
+	InspectedComponent = InComponent;
+	Data = InData;
+	OwningPC = InPC;
+	ProxyMesh = InProxyMesh;
+
+	check(Subsystem);
+	check(InspectedComponent);
+	check(OwningPC);
+	check(ProxyMesh);
 }
 
 void UInspectSession::AddRotationInput(FVector2D Delta)

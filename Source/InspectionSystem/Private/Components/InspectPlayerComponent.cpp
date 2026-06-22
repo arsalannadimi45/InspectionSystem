@@ -2,7 +2,7 @@
 
 
 #include "Components/InspectPlayerComponent.h"
-#include "Core/InspectAction.h"
+#include "Actions/InspectAction.h"
 #include "Core/InspectSubsystem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"

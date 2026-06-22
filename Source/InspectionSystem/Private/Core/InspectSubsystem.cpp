@@ -3,7 +3,7 @@
 
 #include "Core/InspectSubsystem.h"
 
-#include "Core/InspectAction.h"
+#include "Actions/InspectAction.h"
 #include "Core/InspectDataAsset.h"
 #include "Interface/Inspectable.h"
 #include "UI/InspectWidget.h"
@@ -57,7 +57,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[UInspectSubsystem::BeginInspect] Already inspecting %s; call EndInspect() before starting a new session."),
-			*CurrentSession->InspectedComponent->GetOwner()->GetName());
+			*CurrentSession->GetInspectedComponent()->GetOwner()->GetName());
 		return false;
 	}
 
@@ -124,15 +124,10 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		                       : UInspectSession::StaticClass();
 
 	CurrentSession = NewObject<UInspectSession>(this, SessionClass);
-
-	CurrentSession->InspectedComponent = InspectComp;
-	CurrentSession->Data = Data;
-	CurrentSession->OwningPC = OwningPC;
-	CurrentSession->ProxyMesh = InspectMeshProxy;
-	CurrentSession->Subsystem = this;
+	CurrentSession->Initialize(this, InspectComp, Data, OwningPC, InspectMeshProxy);
 	CurrentSession->SetZoom(Data->InitialInspectScale);
 
-	CurrentSession->InitSession();
+	CurrentSession->OnSessionStart();
 
 	const TSoftClassPtr<UInspectWidget>& CustomClass = InspectComp->GetCustomWidgetClass();
 
@@ -159,7 +154,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	RequestingPC->SetInputMode(InputMode);
 	RequestingPC->SetShowMouseCursor(true);
 	
-	HandleInputMappings(CurrentSession->InspectedComponent, true);
+	HandleInputMappings(CurrentSession->GetInspectedComponent(), true);
 	
 	return true;
 }
@@ -171,12 +166,12 @@ void UInspectSubsystem::EndInspect()
 		return;
 	}
 
-	if (CurrentSession->InspectedComponent)
+	if (CurrentSession->GetInspectedComponent())
 	{
 		// Remove Input Mappings
-		HandleInputMappings(CurrentSession->InspectedComponent, false);
+		HandleInputMappings(CurrentSession->GetInspectedComponent(), false);
 
-		IInspectable::Execute_OnInspectEnd(CurrentSession->InspectedComponent);
+		IInspectable::Execute_OnInspectEnd(CurrentSession->GetInspectedComponent());
 	}
 	
 	// Remove UI 
@@ -195,6 +190,8 @@ void UInspectSubsystem::EndInspect()
 		OwningPC->SetInputMode(FInputModeGameOnly());
 		OwningPC->SetShowMouseCursor(false);
 	}
+	
+	CurrentSession->OnSessionEnd();
 	
 	// Clear references
 	CurrentSession = nullptr;
