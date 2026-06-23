@@ -36,12 +36,22 @@ void UInspectSession::Initialize(UInspectSubsystem* InSubsystem, UInspectableCom
 void UInspectSession::AddRotationInput(FVector2D Delta)
 {
 	const float Sensitivity = Data ? Data->RotationSensitivity : 1.0f;
- 
-	FRotator NewRotation = CurrentRotation;
-	NewRotation.Yaw   += Delta.X * Sensitivity;
-	NewRotation.Pitch += Delta.Y * Sensitivity;
- 
-	SetRotation(NewRotation);
+
+	const float YawDelta   = Delta.X * Sensitivity;
+	const float PitchDelta = -Delta.Y * Sensitivity;
+
+	const FQuat YawQuat =
+		FQuat(FVector::UpVector, FMath::DegreesToRadians(YawDelta));
+
+	const FQuat PitchQuat =
+		FQuat(FVector::RightVector, FMath::DegreesToRadians(PitchDelta));
+
+	const FQuat NewRotation =
+		YawQuat *
+		PitchQuat *
+		ProxyMesh->GetRelativeRotation().Quaternion();
+
+	ProxyMesh->SetRelativeRotation(NewRotation);
 }
  
 void UInspectSession::AddPanInput(FVector2D Delta)
@@ -57,13 +67,7 @@ void UInspectSession::AddZoomInput(float Delta)
  
 void UInspectSession::SetRotation(FRotator NewRotation)
 {
-	// Clamp pitch so the object can't flip upside down awkwardly.
-	NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch, -89.0f, 89.0f);
-	NewRotation.Yaw   = FMath::Fmod(NewRotation.Yaw, 360.0f);
-	NewRotation.Roll  = 0.0f; // inspect rotation never rolls
- 
 	CurrentRotation = NewRotation;
-	
 	ProxyMesh->SetRelativeRotation(CurrentRotation);
 }
  
