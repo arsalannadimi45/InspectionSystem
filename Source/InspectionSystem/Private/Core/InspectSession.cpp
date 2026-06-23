@@ -9,13 +9,19 @@
 
 void UInspectSession::OnSessionStart_Implementation()
 {
-	InitialRotation = CurrentRotation;
-	InitialZoom     = CurrentZoom;
+	// Override in subclasses for custom initialization
 }
  
 void UInspectSession::OnSessionEnd_Implementation()
 {
 	// Override in subclasses for custom cleanup.
+}
+
+void UInspectSession::UpdateCurrentTransform()
+{
+	SetPanOffset(CurrentPanOffset);
+	SetRotation(CurrentRotation);
+	SetZoom(CurrentZoom);
 }
 
 void UInspectSession::Tick(float DeltaTime)
@@ -38,9 +44,7 @@ void UInspectSession::Tick(float DeltaTime)
 		CurrentZoom      = FMath::FInterpTo(CurrentZoom, TargetZoom, DeltaTime, Speed);
 	}
 		
-	SetPanOffset(CurrentPanOffset);
-	SetRotation(CurrentRotation);
-	SetZoom(CurrentZoom);
+	UpdateCurrentTransform();
 }
 
 void UInspectSession::Initialize(UInspectSubsystem* InSubsystem, UInspectableComponent* InComponent,
@@ -51,11 +55,30 @@ void UInspectSession::Initialize(UInspectSubsystem* InSubsystem, UInspectableCom
 	Data = InData;
 	OwningPC = InPC;
 	ProxyMesh = InProxyMesh;
-
+	
 	check(Subsystem);
 	check(InspectedComponent);
 	check(OwningPC);
 	check(ProxyMesh);
+	
+	InitializeTransformFromData();
+}
+
+void UInspectSession::InitializeTransformFromData()
+{
+	InitialPanOffset = Data->InitialPositionOffset;
+	InitialRotation  = Data->InitialRotationOffset;
+	InitialZoom      = Data->InitialInspectScale;
+	
+	TargetPanOffset = InitialPanOffset;
+	TargetRotation  = InitialRotation;
+	TargetZoom      = InitialZoom;
+	
+	CurrentPanOffset = TargetPanOffset;
+	CurrentRotation  = TargetRotation;
+	CurrentZoom      = TargetZoom;	
+	
+	UpdateCurrentTransform();
 }
 
 void UInspectSession::AddRotationInput(FVector2D Delta)
@@ -116,7 +139,7 @@ void UInspectSession::SetZoom(float NewZoom)
 void UInspectSession::ResetTransform()
 {
 	TargetRotation  = InitialRotation;
-	TargetPanOffset = FVector2D::ZeroVector;
+	TargetPanOffset = InitialPanOffset;
 	TargetZoom      = InitialZoom;
 }
 

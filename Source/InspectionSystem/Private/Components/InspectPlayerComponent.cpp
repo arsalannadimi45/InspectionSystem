@@ -141,9 +141,7 @@ void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputActi
 		return;
 	}
 
-	// Re-entrancy guard: if a previous BeginInspect's bindings weren't torn
-	// down (e.g. a missed EndInspect), binding again on top would silently
-	// stack duplicate handles and fire actions multiple times per input.
+	// Input safety net, if any actions from previous sessions were still bound, unbind and continue
 	if (BoundActionHandles.Num() > 0)
 	{
 		UE_LOG(LogTemp, Warning,

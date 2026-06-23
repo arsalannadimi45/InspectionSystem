@@ -22,7 +22,7 @@ class INSPECTIONSYSTEM_API UInspectSession : public UObject, public FTickableGam
 	GENERATED_BODY()
 
 public:
-	
+
 	// FTickableGameObject
 	virtual void Tick(float DeltaTime) override;
 	
@@ -55,6 +55,8 @@ public:
 	void OnSessionEnd();
 
 	//  Transform functions
+	
+	void InitializeTransformFromData();
 
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Session|Transform")
 	void AddRotationInput(FVector2D Delta);
@@ -107,7 +109,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	UInspectAction* GetOrCreateActionInstance(TSubclassOf<UInspectAction> ActionClass);
-
+protected:
+	
+	void UpdateCurrentTransform();
+	
 protected:
 	
 	// Context References
@@ -137,6 +142,8 @@ protected:
 
 	UPROPERTY()
 	float CurrentZoom = 1.0f;
+	
+	FVector2D InitialPanOffset = FVector2D::ZeroVector;
 
 	FRotator InitialRotation = FRotator::ZeroRotator;
 
