@@ -18,8 +18,33 @@ void UInspectSession::OnSessionEnd_Implementation()
 	// Override in subclasses for custom cleanup.
 }
 
+void UInspectSession::Tick(float DeltaTime)
+{
+	if (!Data || !ProxyMesh) return;
+
+	const float Speed = Data->InterpSpeed;
+
+	// If InterpSpeed is 0, snap instantly
+	if (Speed <= 0.0f)
+	{
+		CurrentRotation  = TargetRotation;
+		CurrentPanOffset = TargetPanOffset;
+		CurrentZoom      = TargetZoom;
+	}
+	else
+	{
+		CurrentRotation  = FMath::RInterpTo(CurrentRotation,  TargetRotation,  DeltaTime, Speed);
+		CurrentPanOffset = FMath::Vector2DInterpTo(CurrentPanOffset, TargetPanOffset, DeltaTime, Speed);
+		CurrentZoom      = FMath::FInterpTo(CurrentZoom, TargetZoom, DeltaTime, Speed);
+	}
+		
+	SetPanOffset(CurrentPanOffset);
+	SetRotation(CurrentRotation);
+	SetZoom(CurrentZoom);
+}
+
 void UInspectSession::Initialize(UInspectSubsystem* InSubsystem, UInspectableComponent* InComponent,
-	UInspectDataAsset* InData, APlayerController* InPC, UPrimitiveComponent* InProxyMesh)
+                                 UInspectDataAsset* InData, APlayerController* InPC, UPrimitiveComponent* InProxyMesh)
 {
 	Subsystem = InSubsystem;
 	InspectedComponent = InComponent;
@@ -40,35 +65,32 @@ void UInspectSession::AddRotationInput(FVector2D Delta)
 	const float YawDelta   = Delta.X * Sensitivity;
 	const float PitchDelta = -Delta.Y * Sensitivity;
 
-	const FQuat YawQuat =
-		FQuat(FVector::UpVector, FMath::DegreesToRadians(YawDelta));
+	const FQuat YawQuat = FQuat(FVector::UpVector, FMath::DegreesToRadians(YawDelta));
 
-	const FQuat PitchQuat =
-		FQuat(FVector::RightVector, FMath::DegreesToRadians(PitchDelta));
+	const FQuat PitchQuat = FQuat(FVector::RightVector, FMath::DegreesToRadians(PitchDelta));
 
 	const FQuat NewRotation =
 		YawQuat *
 		PitchQuat *
 		ProxyMesh->GetRelativeRotation().Quaternion();
-
-	ProxyMesh->SetRelativeRotation(NewRotation);
+	
+	TargetRotation = NewRotation.Rotator();
 }
  
 void UInspectSession::AddPanInput(FVector2D Delta)
 {
 	const float Sensitivity = Data ? Data->PanSensitivity : 1.0f;
-	SetPanOffset(CurrentPanOffset + Delta * Sensitivity);
+	TargetPanOffset = CurrentPanOffset + Delta * Sensitivity;
 }
  
 void UInspectSession::AddZoomInput(float Delta)
 {
-	SetZoom(CurrentZoom + Delta);
+	TargetZoom = FMath::Clamp(TargetZoom + Delta, Data->MinZoom, Data->MaxZoom);
 }
  
 void UInspectSession::SetRotation(FRotator NewRotation)
 {
-	CurrentRotation = NewRotation;
-	ProxyMesh->SetRelativeRotation(CurrentRotation);
+	ProxyMesh->SetRelativeRotation(NewRotation);
 }
  
 void UInspectSession::SetPanOffset(FVector2D NewOffset)
@@ -77,10 +99,8 @@ void UInspectSession::SetPanOffset(FVector2D NewOffset)
 	constexpr float MaxPanExtent = 200.0f;
 	NewOffset.X = FMath::Clamp(NewOffset.X, -MaxPanExtent, MaxPanExtent);
 	NewOffset.Y = FMath::Clamp(NewOffset.Y, -MaxPanExtent, MaxPanExtent);
- 
-	CurrentPanOffset = NewOffset;
 	
-	ProxyMesh->SetRelativeLocation(FVector(100.0f, CurrentPanOffset.X, CurrentPanOffset.Y));
+	ProxyMesh->SetRelativeLocation(FVector(100.0f, NewOffset.X, NewOffset.Y));
 }
  
 void UInspectSession::SetZoom(float NewZoom)
@@ -88,21 +108,16 @@ void UInspectSession::SetZoom(float NewZoom)
 	const float MinZoom = Data ? Data->MinZoom : 0.1f;
 	const float MaxZoom = Data ? Data->MaxZoom : 5.0f;
  
-	CurrentZoom = FMath::Clamp(NewZoom, MinZoom, MaxZoom);
+	NewZoom = FMath::Clamp(NewZoom, MinZoom, MaxZoom);
 	
-	ProxyMesh->SetRelativeScale3D(FVector(CurrentZoom));
+	ProxyMesh->SetRelativeScale3D(FVector(NewZoom));
 }
 
 void UInspectSession::ResetTransform()
 {
-	CurrentRotation  = InitialRotation;
-	CurrentZoom      = InitialZoom;
-	CurrentPanOffset = FVector2D::ZeroVector;
-	
-	ProxyMesh->SetRelativeLocation(FVector(100.0f, CurrentPanOffset.X, CurrentPanOffset.Y));
-	ProxyMesh->SetRelativeRotation(CurrentRotation);
-	ProxyMesh->SetRelativeScale3D(FVector(CurrentZoom));
-
+	TargetRotation  = InitialRotation;
+	TargetPanOffset = FVector2D::ZeroVector;
+	TargetZoom      = InitialZoom;
 }
 
 UInspectAction* UInspectSession::GetOrCreateActionInstance(TSubclassOf<UInspectAction> ActionClass)

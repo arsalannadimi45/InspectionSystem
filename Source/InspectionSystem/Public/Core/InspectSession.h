@@ -17,11 +17,25 @@ class UInspectSubsystem;
  */
 
 UCLASS(BlueprintType, Blueprintable)
-class INSPECTIONSYSTEM_API UInspectSession : public UObject
+class INSPECTIONSYSTEM_API UInspectSession : public UObject, public FTickableGameObject
 {
 	GENERATED_BODY()
 
 public:
+	
+	// FTickableGameObject
+	virtual void Tick(float DeltaTime) override;
+	
+	virtual TStatId GetStatId() const override
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FMyManager, STATGROUP_Tickables);
+	}
+
+	virtual bool IsTickable() const override
+	{
+		return true;
+	}
+	
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Session")
 	void Initialize(
 		UInspectSubsystem* InSubsystem,
@@ -113,7 +127,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
 	TObjectPtr<UPrimitiveComponent> ProxyMesh;
 
-private:
+protected:
 	
 	UPROPERTY()
 	FRotator CurrentRotation = FRotator::ZeroRotator;
@@ -130,4 +144,8 @@ private:
 
 	UPROPERTY()
 	TMap<TSubclassOf<UInspectAction>, TObjectPtr<UInspectAction>> ActionInstances;
+	
+	FRotator TargetRotation  = FRotator::ZeroRotator;
+	FVector2D TargetPanOffset = FVector2D::ZeroVector;
+	float TargetZoom         = 1.0f;
 };
