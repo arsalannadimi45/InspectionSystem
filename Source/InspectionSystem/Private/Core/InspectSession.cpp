@@ -103,12 +103,17 @@ void UInspectSession::AddRotationInput(FVector2D Delta)
 void UInspectSession::AddPanInput(FVector2D Delta)
 {
 	const float Sensitivity = Data ? Data->PanSensitivity : 1.0f;
-	TargetPanOffset = CurrentPanOffset + Delta * Sensitivity;
+	TargetPanOffset = FVector2D::Clamp(
+		CurrentPanOffset + Delta * Sensitivity,
+		Data->PanLimits * -1,
+		Data->PanLimits);
 }
  
 void UInspectSession::AddZoomInput(float Delta)
 {
-	TargetZoom = FMath::Clamp(TargetZoom + Delta, Data->MinZoom, Data->MaxZoom);
+	float Sensitivity = Data ? Data->ZoomSensitivity : 1.0f;
+	
+	TargetZoom = FMath::Clamp(TargetZoom + Delta * Sensitivity, Data->MinZoom, Data->MaxZoom);
 }
  
 void UInspectSession::SetRotation(FRotator NewRotation)

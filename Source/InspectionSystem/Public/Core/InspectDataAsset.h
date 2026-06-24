@@ -56,7 +56,7 @@ public:
 	 * Scale applied when entering inspect mode.
 	 * Allows differently-sized meshes to occupy a similar screen space.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Initial", meta=(ClampMin="0.01"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Initial", meta=(ClampMin="0.0001"))
 	float InitialInspectScale = 1.0f;
 
 	// Pan
@@ -84,13 +84,17 @@ public:
 	float RotationSensitivity = 0.5f;
 	
 	// Zoom
+	
+	/** Zoom amount per zoom steps. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.0001"))
+	float ZoomSensitivity = 1.0f;
 
 	/** Minimum user zoom multiplier. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.01"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.0001"))
 	float MinZoom = 0.5f;
 
 	/** Maximum user zoom multiplier. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.01"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.0001"))
 	float MaxZoom = 3.0f;
 
 	
