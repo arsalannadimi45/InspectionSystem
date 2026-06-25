@@ -49,10 +49,8 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
-	// Re-entrancy guard: starting a new inspect while one is already active
-	// would leak the previous session's capture actor/widget/bindings and,
-	// combined with the player component's additive binding, double-fire
-	// input. Callers must EndInspect() first.
+	// Only one inspect session can be active at a time.
+	// End the current session before starting another.
 	if (IsInspecting())
 	{
 		UE_LOG(LogTemp, Warning,
@@ -106,9 +104,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
-	// Cache the player controller / player component only after every
-	// failure-prone lookup above has succeeded, so a failed BeginInspect
-	// never leaves the subsystem half-initialized.
+	// Cache the player controller and player component 
 	OwningPC = RequestingPC;
 	InspectPlayerComponent = RequestedPlayerComponent;
 
@@ -130,12 +126,12 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	CurrentSession->OnSessionStart();
 
 	const TSoftClassPtr<UInspectWidget>& CustomClass = InspectComp->GetCustomWidgetClass();
-
+ 
 	TSubclassOf<UInspectWidget> InspectWidgetClass =
 		CustomClass.IsValid()
 			? CustomClass.LoadSynchronous()
 			: InspectSettings->InspectWidgetClass.LoadSynchronous();
-
+	
 	// Show UI 
 	if (InspectWidgetClass && !ActiveWidget)
 	{
@@ -240,11 +236,14 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Render target 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(CaptureActor);
-	RenderTarget->InitCustomFormat(
+	/*RenderTarget->InitCustomFormat(
 		InspectSettings->RenderTargetWidth,
 		InspectSettings->RenderTargetHeight,
-		PF_B8G8R8A8,
-		false);
+		PF_FloatRGBA,
+		false);*/
+	RenderTarget->InitAutoFormat(
+		InspectSettings->RenderTargetWidth,
+		InspectSettings->RenderTargetHeight);
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->UpdateResource();
 
@@ -254,7 +253,7 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	CaptureActor->SetRootComponent(SceneCapture);
 
 	SceneCapture->TextureTarget = RenderTarget;
-	SceneCapture->CaptureSource = SCS_FinalColorLDR;
+	SceneCapture->CaptureSource = SCS_SceneColorHDR;
 	SceneCapture->bCaptureEveryFrame = true;
 	SceneCapture->bCaptureOnMovement = true;
 	SceneCapture->ShowFlags.SetAtmosphere(false);
@@ -263,15 +262,18 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	// Position the camera somewhere clean and isolated.
 	// Visibility layers can be used to further isolate if needed.
 	SceneCapture->SetWorldLocation(FVector(0.0f, 0.0f, 50000.0f));
-	SceneCapture->SetWorldRotation(FRotator(-10.0f, 0.0f, 0.0f));
-	SceneCapture->FOVAngle = 35.0f; // Tighter FOV = less distortion on items
-
+	SceneCapture->SetWorldRotation(FRotator(0.0f, 0.0f, 0.0f));
+	if (InspectSettings->bOverrideCameraFOV)
+	{
+		SceneCapture->FOVAngle = InspectSettings->CameraFOV; // Tighter FOV = less distortion on items
+	}
+	
 	// Mesh proxy: a duplicate mesh placed in front of the capture camera.
 	InspectMeshProxy = CreateMeshProxy(SourceMesh);
 
 	if (InspectMeshProxy)
 	{
-		InspectMeshProxy->SetRelativeLocation(FVector(100.0f, 0.0f, 0.0f));
+		InspectMeshProxy->SetRelativeLocation(FVector(InspectSettings->CameraDistance, 0.0f, 0.0f));
 	}
 	else
 	{
@@ -359,9 +361,7 @@ TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> UInspectSubsystem::R
 {
 	TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> Result = DefaultMapping;
 
-	// Explicit overwrite, not Append() — item-specific entries must win on
-	// key collision, and that has to be true regardless of TMap's internal
-	// merge semantics.
+	// Item specific actions, take priority and override
 	for (const auto& Pair : ItemMapping)
 	{
 		Result.Add(Pair.Key, Pair.Value);

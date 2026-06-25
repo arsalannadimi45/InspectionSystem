@@ -82,7 +82,7 @@ public:
 	// Getters
 
 	UFUNCTION(BlueprintPure, Category="Inspect|Session")
-	UInspectSubsystem* GetSubsystem() const { return Subsystem; }
+	UInspectSubsystem* GetInspectSubsystem() const { return Subsystem; }
 
 	UFUNCTION(BlueprintPure, Category="Inspect|Session")
 	UInspectableComponent* GetInspectedComponent() const { return InspectedComponent; }

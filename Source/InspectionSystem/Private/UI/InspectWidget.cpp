@@ -2,23 +2,33 @@
 
 #include "UI/InspectWidget.h"
 #include "Components/Image.h"
+#include "Core/InspectSettings.h"
 #include "Styling/SlateBrush.h"
 #include "Engine/TextureRenderTarget2D.h"
 
 void UInspectWidget::Initialize(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget)
 {
 	RenderTarget = InRenderTarget;
-	InspectSession = InSession; 
+	InspectSession = InSession;
 
-	// Project Render Target result on Item Image
-	if (ItemImage && InRenderTarget)
+	if (!ItemImage || !InRenderTarget) return;
+
+	UMaterialInterface* BaseMaterial = GetDefault<UInspectSettings>()->InspectRenderMaterial.LoadSynchronous();
+	
+	if (!BaseMaterial)
 	{
-		FSlateBrush Brush;
-		Brush.SetResourceObject(InRenderTarget);
-		Brush.ImageSize = FVector2D(InRenderTarget->SizeX, InRenderTarget->SizeY);
-		ItemImage->SetBrush(Brush);
+		UE_LOG(LogTemp, Error, TEXT("InspectRenderMaterial in Project Settings > Plugins > InspectionSystem cannot be null."))
+		return;
 	}
 	
+	// Create material instance
+	RenderMID = UMaterialInstanceDynamic::Create(BaseMaterial,this);
+	RenderMID->SetTextureParameterValue(TEXT("RenderTarget"), RenderTarget);
+	
+	// Assign material instance to Item Image
+	ItemImage->SetBrushFromMaterial(RenderMID);
+	
 	// Notify the Blueprint layer
+	OnRenderMaterialInitialized(RenderMID);
 	OnInspectInitialized(InSession, InRenderTarget);
 }

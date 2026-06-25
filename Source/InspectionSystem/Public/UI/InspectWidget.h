@@ -40,12 +40,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inspect")
 	void Initialize(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget);
 
+	
+protected:
+	
 	// Blueprint events 
 
 	/** Called once after InitialiseWithContext. Override to populate UI elements. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inspect")
 	void OnInspectInitialized(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget);
 
+	/** Called once after Render Target Material was created and initialized. Override to modify material instance properties. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Inspect")
+	void OnRenderMaterialInitialized(UMaterialInstanceDynamic* RenderMaterialInstance);
 
 protected:
 	
@@ -57,4 +63,7 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect")
 	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> RenderMID;
 };
