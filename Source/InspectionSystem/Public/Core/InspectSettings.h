@@ -18,6 +18,12 @@ class INSPECTIONSYSTEM_API UInspectSettings : public UDeveloperSettings
 public:
 	
 	/**
+	 * Determines whether to pause game during inspection or not
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="General")
+	bool bPauseGameWhileInspection = true;
+	
+	/**
 	 * Default widget blueprint that pops up upon inspecting an item
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="UI")

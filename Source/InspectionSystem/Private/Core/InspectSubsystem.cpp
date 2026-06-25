@@ -107,6 +107,12 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	// Cache the player controller and player component 
 	OwningPC = RequestingPC;
 	InspectPlayerComponent = RequestedPlayerComponent;
+	
+	// Pause game if required
+	if (InspectSettings->bPauseGameWhileInspection)
+	{
+		OwningPC->SetPause(true);
+	}
 
 	// Notify source actor 
 	IInspectable::Execute_OnInspectBegin(InspectComp);
@@ -160,6 +166,12 @@ void UInspectSubsystem::EndInspect()
 	if (!IsInspecting())
 	{
 		return;
+	}
+	
+	// Unpause game 
+	if (GetDefault<UInspectSettings>()->bPauseGameWhileInspection)
+	{
+		OwningPC->SetPause(false);
 	}
 
 	if (CurrentSession->GetInspectedComponent())
@@ -236,14 +248,11 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Render target 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(CaptureActor);
-	/*RenderTarget->InitCustomFormat(
+	RenderTarget->InitCustomFormat(
 		InspectSettings->RenderTargetWidth,
 		InspectSettings->RenderTargetHeight,
 		PF_FloatRGBA,
-		false);*/
-	RenderTarget->InitAutoFormat(
-		InspectSettings->RenderTargetWidth,
-		InspectSettings->RenderTargetHeight);
+		false);
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->UpdateResource();
 
@@ -252,6 +261,7 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	SceneCapture->RegisterComponent();
 	CaptureActor->SetRootComponent(SceneCapture);
 
+	SceneCapture->PrimaryComponentTick.bTickEvenWhenPaused = true;
 	SceneCapture->TextureTarget = RenderTarget;
 	SceneCapture->CaptureSource = SCS_SceneColorHDR;
 	SceneCapture->bCaptureEveryFrame = true;

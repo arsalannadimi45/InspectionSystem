@@ -31,10 +31,8 @@ public:
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FMyManager, STATGROUP_Tickables);
 	}
 
-	virtual bool IsTickable() const override
-	{
-		return true;
-	}
+	virtual bool IsTickable() const override { return true; }
+	virtual bool IsTickableWhenPaused() const override { return true; }
 	
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Session")
 	void Initialize(
