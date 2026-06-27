@@ -133,4 +133,5 @@ protected:
 	
 	UPrimitiveComponent* CreateMeshProxy(UPrimitiveComponent* SourceMesh) const;
 	
+	AActor* FindActorByName(UWorld* World, const FString& ActorName);
 };

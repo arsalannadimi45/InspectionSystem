@@ -8,6 +8,12 @@
 
 void UInspectWidget::Initialize(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget)
 {
+	if (!InRenderTarget)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[UInspectWidget::Initialize] InRenderTarget is null."))	
+		return;
+	}
+	
 	RenderTarget = InRenderTarget;
 	InspectSession = InSession;
 

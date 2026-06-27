@@ -25,12 +25,10 @@ void UInspectSession::UpdateCurrentTransform()
 
 void UInspectSession::Tick(float DeltaTime)
 {
-	if (!Data || !ProxyMesh) return;
-
-	const float Speed = Data->InterpSpeed;
+	if (!bInitialized) return;
 
 	// If InterpSpeed is 0, snap instantly
-	if (Speed <= 0.0f)
+	if (const float Speed = Data->InterpSpeed; Speed <= 0.0f)
 	{
 		CurrentRotation  = TargetRotation;
 		CurrentPanOffset = TargetPanOffset;
@@ -46,21 +44,32 @@ void UInspectSession::Tick(float DeltaTime)
 	UpdateCurrentTransform();
 }
 
-void UInspectSession::Initialize(UInspectSubsystem* InSubsystem, UInspectableComponent* InComponent,
-                                 UInspectDataAsset* InData, APlayerController* InPC, UPrimitiveComponent* InProxyMesh)
+void UInspectSession::Initialize(
+	UInspectSubsystem* InSubsystem,
+	UInspectableComponent* InComponent,
+	UInspectDataAsset* InData,
+	APlayerController* InPC,
+	UPrimitiveComponent* InProxyMesh)
 {
 	Subsystem = InSubsystem;
 	InspectedComponent = InComponent;
 	Data = InData;
 	OwningPC = InPC;
 	ProxyMesh = InProxyMesh;
-	
-	check(Subsystem);
-	check(InspectedComponent);
-	check(OwningPC);
-	check(ProxyMesh);
-	
+
+	if (
+		!ensure(Subsystem) ||
+		!ensure(InspectedComponent) ||
+		!ensure(Data) ||
+		!ensure(OwningPC) ||
+		!ensure(ProxyMesh))
+	{
+		bInitialized = false;
+		return;
+	}
+
 	InitializeTransformFromData();
+	bInitialized = true;
 }
 
 void UInspectSession::InitializeTransformFromData()

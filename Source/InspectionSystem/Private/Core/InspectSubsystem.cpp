@@ -3,6 +3,8 @@
 
 #include "Core/InspectSubsystem.h"
 
+#include "EngineUtils.h"
+#include "ToolBuilderUtil.h"
 #include "Actions/InspectAction.h"
 #include "Core/InspectDataAsset.h"
 #include "Interface/Inspectable.h"
@@ -238,13 +240,14 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Get default settings from Project Settings
 	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
-
-
+	
 	// Spawn the hidden capture host actor 
 	FActorSpawnParameters Params;
-	Params.Name = FName("InspectCaptureActor");
 	Params.ObjectFlags = RF_Transient;
-	CaptureActor = World->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, Params);
+	CaptureActor = World->SpawnActor<AActor>(AActor::StaticClass(),
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		Params);
 
 	// Render target 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(CaptureActor);
@@ -295,6 +298,7 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 void UInspectSubsystem::TeardownCaptureActor()
 {
+	UE_LOG(LogTemp, Warning, TEXT("UInspectSubsystem::TeardownCaptureActor"))
 	if (InspectMeshProxy)
 	{
 		InspectMeshProxy->DestroyComponent();
@@ -425,3 +429,20 @@ UPrimitiveComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* Sou
 
 	return nullptr;
 }
+
+AActor* UInspectSubsystem::FindActorByName(UWorld* World, const FString& ActorName)
+{
+	if (!World)
+		return nullptr;
+
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		if (It->GetName() == ActorName)
+		{
+			return *It;
+		}
+	}
+
+	return nullptr;
+}
+

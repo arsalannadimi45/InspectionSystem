@@ -153,4 +153,6 @@ protected:
 	FRotator TargetRotation  = FRotator::ZeroRotator;
 	FVector2D TargetPanOffset = FVector2D::ZeroVector;
 	float TargetZoom         = 1.0f;
+	
+	bool bInitialized = false;
 };
