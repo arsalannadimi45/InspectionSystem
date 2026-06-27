@@ -57,15 +57,16 @@ void UInspectSession::Initialize(
 	OwningPC = InPC;
 	ProxyMesh = InProxyMesh;
 
-	if (
-		!ensure(Subsystem) ||
-		!ensure(InspectedComponent) ||
-		!ensure(Data) ||
-		!ensure(OwningPC) ||
-		!ensure(ProxyMesh))
+	if (!Subsystem ||
+	!InspectedComponent ||
+	!Data ||
+	!OwningPC ||
+	!ProxyMesh)
 	{
 		bInitialized = false;
-		return;
+		
+		UE_LOG(LogTemp, Error, TEXT("[UInspectSession::Initialize] Failed to initialize Inspect Session."));
+		return; 
 	}
 
 	InitializeTransformFromData();

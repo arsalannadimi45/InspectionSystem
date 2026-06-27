@@ -9,7 +9,7 @@
 
 class UInspectSession;
 
-UCLASS(Abstract, Blueprintable, EditInlineNew)
+UCLASS(Abstract, BlueprintType, Blueprintable, EditInlineNew)
 class INSPECTIONSYSTEM_API UInspectAction : public UObject
 {
 	GENERATED_BODY()

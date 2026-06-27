@@ -132,6 +132,4 @@ protected:
 		const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ItemMapping);
 	
 	UPrimitiveComponent* CreateMeshProxy(UPrimitiveComponent* SourceMesh) const;
-	
-	AActor* FindActorByName(UWorld* World, const FString& ActorName);
 };

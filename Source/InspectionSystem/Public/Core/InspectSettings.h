@@ -43,9 +43,6 @@ public:
 	int32 RenderTargetHeight = 1080;
 
 	UPROPERTY(Config, EditAnywhere, Category="Capture")
-	float CameraDistance = 150.f;
-
-	UPROPERTY(Config, EditAnywhere, Category="Capture")
 	bool bOverrideCameraFOV = false;
 
 	UPROPERTY(Config, EditAnywhere, Category="Capture", meta=(EditCondition="bOverrideCameraFOV"))

@@ -4,7 +4,6 @@
 #include "Core/InspectSubsystem.h"
 
 #include "EngineUtils.h"
-#include "ToolBuilderUtil.h"
 #include "Actions/InspectAction.h"
 #include "Core/InspectDataAsset.h"
 #include "Interface/Inspectable.h"
@@ -286,7 +285,7 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	if (InspectMeshProxy)
 	{
-		InspectMeshProxy->SetRelativeLocation(FVector(InspectSettings->CameraDistance, 0.0f, 0.0f));
+		InspectMeshProxy->SetRelativeLocation(FVector(100, 0.0f, 0.0f));
 	}
 	else
 	{
@@ -425,22 +424,6 @@ UPrimitiveComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* Sou
 		Proxy->RegisterComponent();
 
 		return Proxy;
-	}
-
-	return nullptr;
-}
-
-AActor* UInspectSubsystem::FindActorByName(UWorld* World, const FString& ActorName)
-{
-	if (!World)
-		return nullptr;
-
-	for (TActorIterator<AActor> It(World); It; ++It)
-	{
-		if (It->GetName() == ActorName)
-		{
-			return *It;
-		}
 	}
 
 	return nullptr;
