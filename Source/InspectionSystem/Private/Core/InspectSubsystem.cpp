@@ -3,7 +3,6 @@
 
 #include "Core/InspectSubsystem.h"
 
-#include "EngineUtils.h"
 #include "Actions/InspectAction.h"
 #include "Core/InspectDataAsset.h"
 #include "Interface/Inspectable.h"
@@ -55,7 +54,8 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	if (IsInspecting())
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[UInspectSubsystem::BeginInspect] Already inspecting %s; call EndInspect() before starting a new session."),
+			TEXT("[UInspectSubsystem::BeginInspect] Already inspecting %s; call EndInspect() before "
+			"starting a new session."),
 			*CurrentSession->GetInspectedComponent()->GetOwner()->GetName());
 		return false;
 	}
@@ -94,20 +94,20 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
-	UInspectPlayerComponent* RequestedPlayerComponent = RequestingPC->FindComponentByClass<UInspectPlayerComponent>();
-	if (!RequestedPlayerComponent)
+	UInspectPlayerComponent* FoundInspectPlayerComp = FindInspectPlayerComponent(RequestingPC);
+	if (!FoundInspectPlayerComp)
 	{
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[UInspectSubsystem::BeginInspect] No UInspectPlayerComponent found on %s."),
-			*RequestingPC->GetName());
+			TEXT("[UInspectSubsystem::BeginInspect] No UInspectPlayerComponent found on PlayerController"
+			" nor PlayerCharacter."));
 		return false;
 	}
 
 	// Cache the player controller and player component 
 	OwningPC = RequestingPC;
-	InspectPlayerComponent = RequestedPlayerComponent;
+	InspectPlayerComponent = FoundInspectPlayerComp;
 	
 	// Pause game if required
 	if (InspectSettings->bPauseGameWhileInspection)
@@ -290,14 +290,14 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 	else
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[UInspectSubsystem::SetupCaptureActor] Failed to create mesh proxy for %s (unsupported mesh type)."),
+			TEXT("[UInspectSubsystem::SetupCaptureActor] Failed to create mesh "
+			"proxy for %s (unsupported mesh type)."),
 			*SourceMesh->GetName());
 	}
 }
 
 void UInspectSubsystem::TeardownCaptureActor()
 {
-	UE_LOG(LogTemp, Warning, TEXT("UInspectSubsystem::TeardownCaptureActor"))
 	if (InspectMeshProxy)
 	{
 		InspectMeshProxy->DestroyComponent();
@@ -427,5 +427,36 @@ UPrimitiveComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* Sou
 	}
 
 	return nullptr;
+}
+
+UInspectPlayerComponent* UInspectSubsystem::FindInspectPlayerComponent(const APlayerController* PlayerController) const
+{
+	if (!PlayerController)
+	{
+		return nullptr;
+	}
+
+	UInspectPlayerComponent* ControllerComponent = 
+		PlayerController->FindComponentByClass<UInspectPlayerComponent>();
+
+	UInspectPlayerComponent* PawnComponent = nullptr;
+	if (const APawn* Pawn = PlayerController->GetPawn())
+	{
+		PawnComponent = Pawn->FindComponentByClass<UInspectPlayerComponent>();
+	}
+
+	if (ControllerComponent && PawnComponent)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[UInspectSubsystem::FindInspectPlayerComponent] Both PlayerController '%s' and Pawn '%s' have "
+			"an InspectPlayerComponent. Only one must have this component."
+			"The PlayerController's component will be used."),
+			*PlayerController->GetName(),
+			*PlayerController->GetPawn()->GetName());
+
+		return ControllerComponent;
+	}
+
+	return ControllerComponent ? ControllerComponent : PawnComponent;
 }
 

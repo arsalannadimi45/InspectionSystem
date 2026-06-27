@@ -67,10 +67,20 @@ void UInspectPlayerComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	OwningPC = Cast<APlayerController>(GetOwner());
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	{
+		OwningPC = PC;
+	}
+	else if (APawn* Pawn = Cast<APawn>(GetOwner()))
+	{
+		OwningPC = Cast<APlayerController>(Pawn->GetController());
+	}
+
 	if (!OwningPC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[UInspectPlayerComponent::BeginPlay] InspectPlayerComponent must be attached to the Player Controller."))
+		UE_LOG(LogTemp, Error,
+			TEXT("[UInspectPlayerComponent::BeginPlay] InspectPlayerComponent must be attached to either"
+			" a PlayerController or a Pawn possessed by a PlayerController."));
 	}
 }
 

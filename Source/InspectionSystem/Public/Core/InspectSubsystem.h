@@ -132,4 +132,6 @@ protected:
 		const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ItemMapping);
 	
 	UPrimitiveComponent* CreateMeshProxy(UPrimitiveComponent* SourceMesh) const;
+	
+	UInspectPlayerComponent* FindInspectPlayerComponent(const APlayerController* PlayerController) const;
 };
