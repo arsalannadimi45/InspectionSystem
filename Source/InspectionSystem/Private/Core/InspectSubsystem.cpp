@@ -4,7 +4,7 @@
 #include "Core/InspectSubsystem.h"
 
 #include "Actions/InspectAction.h"
-#include "Core/InspectDataAsset.h"
+#include "Core/InspectConfig.h"
 #include "Interface/Inspectable.h"
 #include "UI/InspectWidget.h"
 
@@ -71,13 +71,13 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
-	UInspectDataAsset* Data = IInspectable::Execute_GetInspectData(InspectComp);
-	if (!Data)
+	UInspectConfig* Config = IInspectable::Execute_GetInspectConfig(InspectComp);
+	if (!Config)
 	{
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[UInspectSubsystem::BeginInspect] GetInspectData returned null on %s."),
+			TEXT("[UInspectSubsystem::BeginInspect] GetInspectConfig returned null on %s."),
 			*InspectComp->GetName()
 		);
 		return false;
@@ -122,17 +122,17 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	SetupCaptureActor(Mesh);
 
 	// Spawn the session 
-	UClass* SessionClass = Data->OverrideSessionClass
-		                       ? Data->OverrideSessionClass.Get()
+	const UClass* SessionClass = InspectComp->GetWidgetClassOverride()
+		                       ? InspectComp->GetWidgetClassOverride().Get()
 		                       : UInspectSession::StaticClass();
 
 	CurrentSession = NewObject<UInspectSession>(this, SessionClass);
-	CurrentSession->Initialize(this, InspectComp, Data, OwningPC, InspectMeshProxy);
-	CurrentSession->SetZoom(Data->InitialInspectScale);
+	CurrentSession->Initialize(this, InspectComp, Config, OwningPC, InspectMeshProxy);
+	CurrentSession->SetZoom(Config->InitialInspectScale);
 
 	CurrentSession->OnSessionStart();
 
-	const TSoftClassPtr<UInspectWidget>& CustomClass = InspectComp->GetCustomWidgetClass();
+	const TSoftClassPtr<UInspectWidget>& CustomClass = InspectComp->GetWidgetClassOverride();
  
 	TSubclassOf<UInspectWidget> InspectWidgetClass =
 		CustomClass.IsValid()
@@ -145,7 +145,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		ActiveWidget = CreateWidget<UInspectWidget>(RequestingPC, InspectWidgetClass);
 		if (ActiveWidget)
 		{
-			ActiveWidget->Initialize(CurrentSession, RenderTarget);
+			ActiveWidget->InitializeWidget(CurrentSession, RenderTarget);
 			ActiveWidget->AddToViewport();
 		}
 	}

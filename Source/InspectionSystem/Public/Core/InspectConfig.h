@@ -5,34 +5,22 @@
 #include "CoreMinimal.h"
 #include "InspectSession.h"
 #include "Engine/DataAsset.h"
-#include "InspectDataAsset.generated.h"
+#include "InspectConfig.generated.h"
 
 /**
- * UInspectDataAsset
+ * UInspectConfig
  *
- * Drop one of these in your Content Browser for every inspectable item.
- * The InspectableComponent references it. 
+ * Determines actions' initial situations, limits and sensitivities while inspecting
+ * an Inspectable object
  */
 UCLASS(BlueprintType)
-class INSPECTIONSYSTEM_API UInspectDataAsset : public UPrimaryDataAsset
+class INSPECTIONSYSTEM_API UInspectConfig : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
 	
-	// Display
-
-	/** Inspected item's display name. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Display")
-	FText DisplayName;
-
-	/** Inspected item's description. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Display", meta=(MultiLine=true))
-	FText Description;
-
-
 	// Initial Transform
-	
 	
 	/**
 	 * Initial positional offset applied when inspection begins.
@@ -63,7 +51,7 @@ public:
 
 	/** Movement speed while panning the object. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Pan")
-	float PanSensitivity = 1.0f;
+	float PanSensitivity = 5.0f;
 
 	/**
 	 * Maximum distance the object may be panned from its origin.
@@ -74,28 +62,28 @@ public:
 	 * Set to (0,0) to completely disable panning.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Pan", meta=(ClampMin="0.0"))
-	FVector2D PanLimits = FVector2D(100.f, 100.f);
+	FVector2D PanLimits = FVector2D(50, 50);
 	
 	
 	// Rotation
 
 	/** Degrees rotated per unit of input. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Rotation")
-	float RotationSensitivity = 0.5f;
+	float RotationSensitivity = 5;
 	
 	// Zoom
 	
 	/** Zoom amount per zoom steps. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.0001"))
-	float ZoomSensitivity = 1.0f;
+	float ZoomSensitivity = 0.15f;
 
 	/** Minimum user zoom multiplier. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.0001"))
-	float MinZoom = 0.5f;
+	float MinZoom = 0.1f;
 
 	/** Maximum user zoom multiplier. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Zoom", meta=(ClampMin="0.0001"))
-	float MaxZoom = 3.0f;
+	float MaxZoom = 1.0f;
 
 	
 	// Smoothing
@@ -108,13 +96,4 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Smoothing", meta=(ClampMin="0.0"))
 	float InterpSpeed = 25.0f;
-
-
-	// Session
-
-	/**
-	 * Override session class in order to have your own session class when inspection begins.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Session")
-	TSubclassOf<UInspectSession> OverrideSessionClass;
 };

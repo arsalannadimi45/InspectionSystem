@@ -10,7 +10,7 @@
 
 class UInputAction;
 class UInputMappingContext;
-class UInspectDataAsset;
+class UInspectConfig;
 
 /**
  * UInspectableComponent
@@ -32,7 +32,7 @@ public:
 	
 	// IInspectable 
 
-	virtual UInspectDataAsset* GetInspectData_Implementation() const override;
+	virtual UInspectConfig* GetInspectConfig_Implementation() const override;
 	virtual void OnInspectBegin_Implementation() override;
 	virtual void OnInspectEnd_Implementation() override;
 	virtual UPrimitiveComponent* GetInspectMeshOverride_Implementation() const override;
@@ -43,6 +43,16 @@ protected:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void RefreshActionMapping();
 #endif
+	
+	// Inspectable Info
+
+	/** Inspected item's display name. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Info")
+	FText DisplayName;
+
+	/** Inspected item's description. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Info", meta=(MultiLine=true))
+	FText Description;
 	
 	// Input Configuration
 
@@ -64,49 +74,72 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|Input")
 	FInspectMapping AdditionalInspectMapping;
 	
-	// Generic Data
+	// Overriden Data
 	
-	/** The data asset controlling this object's inspect behavior. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect")
-	TObjectPtr<UInspectDataAsset> InspectData;
+	/** Override this property in order to have a specific Inspect Config for this object. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Config")
+	TObjectPtr<UInspectConfig> InspectConfigOverride;
 
 	/**
 	 * If set, this specific mesh component is used during inspection instead
 	 * of auto-detecting the first StaticMesh/SkeletalMesh on the owner.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Mesh")
 	TObjectPtr<UPrimitiveComponent> MeshOverride;
 
+protected:
+	
+	virtual void BeginPlay() override;
+	
 	// Helpers 
 
 	/**
 	 * Finds the best mesh component on the owner actor.
 	 * Prefers MeshOverride → first SkeletalMesh → first StaticMesh.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Inspect")
+	UFUNCTION(BlueprintCallable, Category = "Inspect|Mesh")
 	UPrimitiveComponent* ResolveInspectMesh() const;
 	
 	/**
 	* Override this class if you want specific widget class for this object's inspection
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|UI", meta=(AllowPrivateAcess="true"))
-	TSoftClassPtr<class UInspectWidget> CustomWidgetClass;
+	TSoftClassPtr<class UInspectWidget> WidgetClassOverride;
 	
 	/** Cached resolved mesh so we don't search every frame. */
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> CachedMesh;
 	
-protected:
-	virtual void BeginPlay() override;
-	
 public:	
 	
+	UFUNCTION(BlueprintCallable, Category = "Inspect|Info")
+	void SetInfo(const FText InDisplayName,const FText InDescription)
+	{
+		DisplayName = InDisplayName;
+		Description = InDescription;
+	}
+	UFUNCTION(BlueprintCallable, Category = "Inspect|Info")
+	void SetDisplayName(const FText InDisplayName)
+	{
+		DisplayName = InDisplayName;
+	}
+	UFUNCTION(BlueprintCallable, Category = "Inspect|Info")
+	void SetDescription(const FText InDescription)
+	{
+		Description = InDescription;
+	}
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Info")
+	FORCEINLINE FText GetDisplayName() const { return DisplayName; }
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Info")
+	FORCEINLINE FText GetDescription() const { return Description; }
+
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|UI")
-	TSoftClassPtr<UInspectWidget> GetCustomWidgetClass() { return CustomWidgetClass; }
+	TSoftClassPtr<UInspectWidget> GetWidgetClassOverride() const { return WidgetClassOverride; }
 		
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")	
 	const FInspectMapping& GetInspectActionMapping() const { return AdditionalInspectMapping; }
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")
-	bool ShouldUseDefaultInspectMapping() {return bUseDefaultInspectMapping;};
+	bool ShouldUseDefaultInspectMapping() const {return bUseDefaultInspectMapping;};
 };

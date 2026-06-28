@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Core/InspectDataAsset.h"
+#include "Core/InspectConfig.h"
 #include "Inspectable.generated.h"
 
 // This class does not need to be modified.
@@ -20,7 +20,7 @@ class UInspectable : public UInterface
  * Implement this on any Actor you want to be inspectable.
  * The InspectSubsystem will call these methods during the inspect lifecycle.
  *
- * Deliberately minimal — most config lives in UInspectDataAsset.
+ * Deliberately minimal — most config lives in UInspectConfig.
  */
 class INSPECTIONSYSTEM_API IInspectable
 {
@@ -32,7 +32,7 @@ public:
 	 * Must be overridden. Return nullptr to abort inspection.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect")
-	UInspectDataAsset* GetInspectData() const;
+	UInspectConfig* GetInspectConfig() const;
 
 	/**
 	 * Called the moment the player initiates inspection of this object.

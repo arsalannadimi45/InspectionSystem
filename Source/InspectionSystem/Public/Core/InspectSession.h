@@ -7,7 +7,7 @@
 
 class UInspectableComponent;
 class UInspectAction;
-class UInspectDataAsset;
+class UInspectConfig;
 class UInspectSubsystem;
 
 /**
@@ -38,7 +38,7 @@ public:
 	void Initialize(
 		UInspectSubsystem* InSubsystem,
 		UInspectableComponent* InComponent,
-		UInspectDataAsset* InData,
+		UInspectConfig* InConfig,
 		APlayerController* InPC,
 		UPrimitiveComponent* InProxyMesh);
 
@@ -54,7 +54,7 @@ public:
 
 	//  Transform functions
 	
-	void InitializeTransformFromData();
+	void InitializeTransformByConfig();
 
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Session|Transform")
 	void AddRotationInput(FVector2D Delta);
@@ -86,7 +86,7 @@ public:
 	UInspectableComponent* GetInspectedComponent() const { return InspectedComponent; }
 
 	UFUNCTION(BlueprintPure, Category="Inspect|Session")
-	UInspectDataAsset* GetInspectData() const { return Data; }
+	UInspectConfig* GetInspectConfig() const { return InspectConfig; }
 
 	UFUNCTION(BlueprintPure, Category="Inspect|Session")
 	APlayerController* GetOwningPlayerController() const { return OwningPC; }
@@ -122,7 +122,7 @@ protected:
 	TObjectPtr<UInspectableComponent> InspectedComponent;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
-	TObjectPtr<UInspectDataAsset> Data;
+	TObjectPtr<UInspectConfig> InspectConfig;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
 	TObjectPtr<APlayerController> OwningPC;

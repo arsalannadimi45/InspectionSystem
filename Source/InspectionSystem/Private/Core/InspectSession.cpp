@@ -3,7 +3,7 @@
 #include "Core/InspectSession.h"
 
 #include "Components/InspectableComponent.h"
-#include "Core/InspectDataAsset.h"
+#include "Core/InspectConfig.h"
 
 
 void UInspectSession::OnSessionStart_Implementation()
@@ -28,7 +28,7 @@ void UInspectSession::Tick(float DeltaTime)
 	if (!bInitialized) return;
 
 	// If InterpSpeed is 0, snap instantly
-	if (const float Speed = Data->InterpSpeed; Speed <= 0.0f)
+	if (const float Speed = InspectConfig->InterpSpeed; Speed <= 0.0f)
 	{
 		CurrentRotation  = TargetRotation;
 		CurrentPanOffset = TargetPanOffset;
@@ -47,19 +47,19 @@ void UInspectSession::Tick(float DeltaTime)
 void UInspectSession::Initialize(
 	UInspectSubsystem* InSubsystem,
 	UInspectableComponent* InComponent,
-	UInspectDataAsset* InData,
+	UInspectConfig* InConfig,
 	APlayerController* InPC,
 	UPrimitiveComponent* InProxyMesh)
 {
 	Subsystem = InSubsystem;
 	InspectedComponent = InComponent;
-	Data = InData;
+	InspectConfig = InConfig;
 	OwningPC = InPC;
 	ProxyMesh = InProxyMesh;
 
 	if (!Subsystem ||
 	!InspectedComponent ||
-	!Data ||
+	!InspectConfig ||
 	!OwningPC ||
 	!ProxyMesh)
 	{
@@ -69,15 +69,15 @@ void UInspectSession::Initialize(
 		return; 
 	}
 
-	InitializeTransformFromData();
+	InitializeTransformByConfig();
 	bInitialized = true;
 }
 
-void UInspectSession::InitializeTransformFromData()
+void UInspectSession::InitializeTransformByConfig()
 {
-	InitialPanOffset = Data->InitialPositionOffset;
-	InitialRotation  = Data->InitialRotationOffset;
-	InitialZoom      = Data->InitialInspectScale;
+	InitialPanOffset = InspectConfig->InitialPositionOffset;
+	InitialRotation  = InspectConfig->InitialRotationOffset;
+	InitialZoom      = InspectConfig->InitialInspectScale;
 	
 	TargetPanOffset = InitialPanOffset;
 	TargetRotation  = InitialRotation;
@@ -92,7 +92,7 @@ void UInspectSession::InitializeTransformFromData()
 
 void UInspectSession::AddRotationInput(FVector2D Delta)
 {
-	const float Sensitivity = Data ? Data->RotationSensitivity : 1.0f;
+	const float Sensitivity = InspectConfig ? InspectConfig->RotationSensitivity : 1.0f;
 
 	const float YawDelta   = Delta.X * Sensitivity;
 	const float PitchDelta = -Delta.Y * Sensitivity;
@@ -111,18 +111,18 @@ void UInspectSession::AddRotationInput(FVector2D Delta)
  
 void UInspectSession::AddPanInput(FVector2D Delta)
 {
-	const float Sensitivity = Data ? Data->PanSensitivity : 1.0f;
+	const float Sensitivity = InspectConfig ? InspectConfig->PanSensitivity : 1.0f;
 	TargetPanOffset = FVector2D::Clamp(
 		CurrentPanOffset + Delta * Sensitivity,
-		Data->PanLimits * -1,
-		Data->PanLimits);
+		InspectConfig->PanLimits * -1,
+		InspectConfig->PanLimits);
 }
  
 void UInspectSession::AddZoomInput(float Delta)
 {
-	float Sensitivity = Data ? Data->ZoomSensitivity : 1.0f;
+	float Sensitivity = InspectConfig ? InspectConfig->ZoomSensitivity : 1.0f;
 	
-	TargetZoom = FMath::Clamp(TargetZoom + Delta * Sensitivity, Data->MinZoom, Data->MaxZoom);
+	TargetZoom = FMath::Clamp(TargetZoom + Delta * Sensitivity, InspectConfig->MinZoom, InspectConfig->MaxZoom);
 }
  
 void UInspectSession::SetRotation(FRotator NewRotation)
@@ -142,8 +142,8 @@ void UInspectSession::SetPanOffset(FVector2D NewOffset)
  
 void UInspectSession::SetZoom(float NewZoom)
 {
-	const float MinZoom = Data ? Data->MinZoom : 0.1f;
-	const float MaxZoom = Data ? Data->MaxZoom : 5.0f;
+	const float MinZoom = InspectConfig ? InspectConfig->MinZoom : 0.1f;
+	const float MaxZoom = InspectConfig ? InspectConfig->MaxZoom : 5.0f;
  
 	NewZoom = FMath::Clamp(NewZoom, MinZoom, MaxZoom);
 	

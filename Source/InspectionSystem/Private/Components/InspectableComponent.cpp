@@ -4,7 +4,7 @@
 
 #include "EnhancedActionKeyMapping.h"
 #include "InputMappingContext.h"
-#include "Core/InspectDataAsset.h"
+#include "Core/InspectConfig.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -68,9 +68,9 @@ void UInspectableComponent::BeginPlay()
 
 // IInspectable default implementations 
 
-UInspectDataAsset* UInspectableComponent::GetInspectData_Implementation() const
+UInspectConfig* UInspectableComponent::GetInspectConfig_Implementation() const
 {
-	return InspectData;
+	return InspectConfigOverride;
 }
 
 void UInspectableComponent::OnInspectBegin_Implementation()

@@ -6,7 +6,7 @@
 #include "Styling/SlateBrush.h"
 #include "Engine/TextureRenderTarget2D.h"
 
-void UInspectWidget::Initialize(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget)
+void UInspectWidget::InitializeWidget(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget)
 {
 	if (!InRenderTarget)
 	{
@@ -36,5 +36,5 @@ void UInspectWidget::Initialize(UInspectSession* InSession, UTextureRenderTarget
 	
 	// Notify the Blueprint layer
 	OnRenderMaterialInitialized(RenderMID);
-	OnInspectInitialized(InSession, InRenderTarget);
+	OnWidgetInitialized(InSession, InRenderTarget);
 }

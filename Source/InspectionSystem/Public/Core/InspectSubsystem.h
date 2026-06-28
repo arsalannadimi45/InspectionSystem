@@ -12,7 +12,7 @@ class UInspectorComponent;
 class UInspectSession;
 struct FInputActionValue;
 class UInputAction;
-class UInspectDataAsset;
+class UInspectConfig;
 class UInspectWidget;
 class USceneCaptureComponent2D;
 class UTextureRenderTarget2D;

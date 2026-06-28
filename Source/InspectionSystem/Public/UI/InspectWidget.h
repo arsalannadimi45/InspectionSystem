@@ -38,16 +38,16 @@ public:
 	 * Passes the render target (for the UImage brush) and the data context.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inspect")
-	void Initialize(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget);
+	void InitializeWidget(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget);
 
 	
 protected:
 	
 	// Blueprint events 
 
-	/** Called once after InitialiseWithContext. Override to populate UI elements. */
+	/** Called once after InitializeWidget. Override to populate UI elements. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inspect")
-	void OnInspectInitialized(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget);
+	void OnWidgetInitialized(UInspectSession* InSession, UTextureRenderTarget2D* InRenderTarget);
 
 	/** Called once after Render Target Material was created and initialized. Override to modify material instance properties. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inspect")
