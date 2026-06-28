@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Components/InspectPlayerComponent.h"
+#include "Components/InspectorComponent.h"
 #include "Actions/InspectAction.h"
 #include "Core/InspectSubsystem.h"
 #include "EnhancedInputComponent.h"
@@ -11,14 +11,14 @@
 #include "GameFramework/PlayerController.h"
 
 // Sets default values for this component's properties
-UInspectPlayerComponent::UInspectPlayerComponent()
+UInspectorComponent::UInspectorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
 #if WITH_EDITOR
 
-void UInspectPlayerComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UInspectorComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -32,7 +32,7 @@ void UInspectPlayerComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	}
 }
 
-void UInspectPlayerComponent::RefreshActionMapping()
+void UInspectorComponent::RefreshActionMapping()
 {
 	DefaultInspectMapping.ActionMapping.Empty();
 
@@ -63,7 +63,7 @@ void UInspectPlayerComponent::RefreshActionMapping()
 
 // Lifecycle
 
-void UInspectPlayerComponent::BeginPlay()
+void UInspectorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	
@@ -79,12 +79,12 @@ void UInspectPlayerComponent::BeginPlay()
 	if (!OwningPC)
 	{
 		UE_LOG(LogTemp, Error,
-			TEXT("[UInspectPlayerComponent::BeginPlay] InspectPlayerComponent must be attached to either"
+			TEXT("[UInspectorComponent::BeginPlay] InspectPlayerComponent must be attached to either"
 			" a PlayerController or a Pawn possessed by a PlayerController."));
 	}
 }
 
-UEnhancedInputLocalPlayerSubsystem* UInspectPlayerComponent::GetInputSubsystem()
+UEnhancedInputLocalPlayerSubsystem* UInspectorComponent::GetInputSubsystem()
 {
 	if (InputSubsystem)
 	{
@@ -104,13 +104,13 @@ UEnhancedInputLocalPlayerSubsystem* UInspectPlayerComponent::GetInputSubsystem()
 	if (!InputSubsystem)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[UInspectPlayerComponent] No UEnhancedInputLocalPlayerSubsystem found on owning PlayerController's LocalPlayer."));
+			TEXT("[UInspectorComponent] No UEnhancedInputLocalPlayerSubsystem found on owning PlayerController's LocalPlayer."));
 	}
 
 	return InputSubsystem;
 }
 
-void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
+void UInspectorComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
 {
 	if (!Context)
 	{
@@ -123,7 +123,7 @@ void UInspectPlayerComponent::AddInputMappingContext(UInputMappingContext* Conte
 	}
 }
 
-void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Context)
+void UInspectorComponent::RemoveInputMappingContext(UInputMappingContext* Context)
 {
 	if (!Context)
 	{
@@ -136,18 +136,18 @@ void UInspectPlayerComponent::RemoveInputMappingContext(UInputMappingContext* Co
 	}
 }
 
-void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping)
+void UInspectorComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping)
 {
 	if (!OwningPC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[UInspectPlayerComponent::BindActionMapping] No OwningPC, cannot bind."));
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectorComponent::BindActionMapping] No OwningPC, cannot bind."));
 		return;
 	}
 
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC->InputComponent);
 	if (!EIC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[UInspectPlayerComponent::BindActionMapping] OwningPC has no EnhancedInputComponent."));
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectorComponent::BindActionMapping] OwningPC has no EnhancedInputComponent."));
 		return;
 	}
 
@@ -155,7 +155,7 @@ void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputActi
 	if (BoundActionHandles.Num() > 0)
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("[UInspectPlayerComponent::BindActionMapping] Bindings already active; unbinding stale set before rebinding."));
+			TEXT("[UInspectorComponent::BindActionMapping] Bindings already active; unbinding stale set before rebinding."));
 		UnbindAllActions();
 	}
 
@@ -172,14 +172,14 @@ void UInspectPlayerComponent::BindActionMapping(const TMap<TObjectPtr<UInputActi
 			IA,
 			ETriggerEvent::Triggered,
 			this,
-			&UInspectPlayerComponent::OnInspectInputTriggered
+			&UInspectorComponent::OnInspectInputTriggered
 		);
 
 		BoundActionHandles.Add(Binding.GetHandle());
 	}
 }
 
-void UInspectPlayerComponent::UnbindAllActions()
+void UInspectorComponent::UnbindAllActions()
 {
 	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC ? OwningPC->InputComponent : nullptr))
 	{
@@ -191,7 +191,7 @@ void UInspectPlayerComponent::UnbindAllActions()
 	BoundActionHandles.Reset();
 }
 
-void UInspectPlayerComponent::OnInspectInputTriggered(const FInputActionInstance& ActionInstance)
+void UInspectorComponent::OnInspectInputTriggered(const FInputActionInstance& ActionInstance)
 {
 	if (UInspectSubsystem* InspectSubsystem = GetInspectSubsystem())
 	{
@@ -201,7 +201,7 @@ void UInspectPlayerComponent::OnInspectInputTriggered(const FInputActionInstance
 
 // Helpers
 
-UInspectSubsystem* UInspectPlayerComponent::GetInspectSubsystem() const
+UInspectSubsystem* UInspectorComponent::GetInspectSubsystem() const
 {
 	UWorld* World = GetWorld();
 	return World ? World->GetSubsystem<UInspectSubsystem>() : nullptr;

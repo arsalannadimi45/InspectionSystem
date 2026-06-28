@@ -7,7 +7,7 @@
 #include "InputActionValue.h"
 #include "InputTriggers.h"
 #include "Core/InspectTypes.h"
-#include "InspectPlayerComponent.generated.h"
+#include "InspectorComponent.generated.h"
 
 struct FInputActionInstance;
 class UEnhancedInputLocalPlayerSubsystem;
@@ -18,7 +18,7 @@ class UInspectTriggerComponent;
 class APlayerController;
 
 /**
- * UInspectPlayerComponent
+ * UInspectorComponent
  *
  * Add this to your PlayerPawn (or PlayerCharacter).
  * It manages:
@@ -30,13 +30,13 @@ class APlayerController;
  * Swap input actions via the properties panel for each project.
  */
 UCLASS( ClassGroup=("Inspect"), meta=(BlueprintSpawnableComponent) )
-class INSPECTIONSYSTEM_API UInspectPlayerComponent : public UActorComponent
+class INSPECTIONSYSTEM_API UInspectorComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	UInspectPlayerComponent();
+	UInspectorComponent();
 	
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

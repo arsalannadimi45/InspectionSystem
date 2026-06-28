@@ -8,7 +8,7 @@
 
 class UInspectAction;
 class UInspectableComponent;
-class UInspectPlayerComponent;
+class UInspectorComponent;
 class UInspectSession;
 struct FInputActionValue;
 class UInputAction;
@@ -29,7 +29,7 @@ class UStaticMeshComponent;
  * Input Action -> Inspect Action map for a session: it merges the player's
  * DefaultInspectMapping with the inspected item's AdditionalInspectMapping,
  * with item-specific entries always winning on key collision, and hands the
- * resolved, flat map to UInspectPlayerComponent purely for binding/transport.
+ * resolved, flat map to UInspectorComponent purely for binding/transport.
  *
  * Lifetime: created automatically when the World loads, destroyed when it unloads.
  * Access: UGameplayStatics or UWorld::GetSubsystem<UInspectSubsystem>()
@@ -86,7 +86,7 @@ protected:
 	TObjectPtr<APlayerController> OwningPC;
 	
 	UPROPERTY(Transient)
-	TObjectPtr<UInspectPlayerComponent> InspectPlayerComponent;
+	TObjectPtr<UInspectorComponent> InspectPlayerComponent;
 	
 	UPROPERTY(Transient)
 	TObjectPtr<UInspectWidget> ActiveWidget;
@@ -133,5 +133,5 @@ protected:
 	
 	UPrimitiveComponent* CreateMeshProxy(UPrimitiveComponent* SourceMesh) const;
 	
-	UInspectPlayerComponent* FindInspectPlayerComponent(const APlayerController* PlayerController) const;
+	UInspectorComponent* FindInspectPlayerComponent(const APlayerController* PlayerController) const;
 };

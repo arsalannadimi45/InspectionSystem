@@ -16,7 +16,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/InspectableComponent.h"
-#include "Components/InspectPlayerComponent.h"
+#include "Components/InspectorComponent.h"
 #include "Core/InspectSession.h"
 #include "Core/InspectSettings.h"
 #include "GameFramework/PlayerController.h"
@@ -94,13 +94,13 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		return false;
 	}
 
-	UInspectPlayerComponent* FoundInspectPlayerComp = FindInspectPlayerComponent(RequestingPC);
+	UInspectorComponent* FoundInspectPlayerComp = FindInspectPlayerComponent(RequestingPC);
 	if (!FoundInspectPlayerComp)
 	{
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[UInspectSubsystem::BeginInspect] No UInspectPlayerComponent found on PlayerController"
+			TEXT("[UInspectSubsystem::BeginInspect] No UInspectorComponent found on PlayerController"
 			" nor PlayerCharacter."));
 		return false;
 	}
@@ -344,7 +344,7 @@ void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComp
 
 		// Item-specific bindings always win over default bindings for the
 		// same UInputAction. This is the sole place this merge happens —
-		// UInspectPlayerComponent only ever sees the final, flat result.
+		// UInspectorComponent only ever sees the final, flat result.
 		CurrentInspectActionMap = ResolveActionMapping(
 			bUseDefault ? InspectPlayerComponent->DefaultInspectMapping.ActionMapping : 
 			TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>(),
@@ -429,20 +429,20 @@ UPrimitiveComponent* UInspectSubsystem::CreateMeshProxy(UPrimitiveComponent* Sou
 	return nullptr;
 }
 
-UInspectPlayerComponent* UInspectSubsystem::FindInspectPlayerComponent(const APlayerController* PlayerController) const
+UInspectorComponent* UInspectSubsystem::FindInspectPlayerComponent(const APlayerController* PlayerController) const
 {
 	if (!PlayerController)
 	{
 		return nullptr;
 	}
 
-	UInspectPlayerComponent* ControllerComponent = 
-		PlayerController->FindComponentByClass<UInspectPlayerComponent>();
+	UInspectorComponent* ControllerComponent = 
+		PlayerController->FindComponentByClass<UInspectorComponent>();
 
-	UInspectPlayerComponent* PawnComponent = nullptr;
+	UInspectorComponent* PawnComponent = nullptr;
 	if (const APawn* Pawn = PlayerController->GetPawn())
 	{
-		PawnComponent = Pawn->FindComponentByClass<UInspectPlayerComponent>();
+		PawnComponent = Pawn->FindComponentByClass<UInspectorComponent>();
 	}
 
 	if (ControllerComponent && PawnComponent)
