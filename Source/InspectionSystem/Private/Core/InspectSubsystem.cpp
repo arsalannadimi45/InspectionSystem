@@ -40,12 +40,12 @@ void UInspectSubsystem::Deinitialize()
 
 // Public API
 
-bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* RequestingPC)
+bool UInspectSubsystem::BeginInspect(TScriptInterface<IInspectable> Inspectable, APlayerController* RequestingPC)
 {
-	if (!ActorToInspect || !RequestingPC)
+	if (!Inspectable || !RequestingPC)
 	{
 		UE_LOG(LogTemp, Warning,
-		       TEXT("[UInspectSubsystem::BeginInspect] ActorToInspect or RequestingPC Cannot be null."));
+		       TEXT("[UInspectSubsystem::BeginInspect] Inspectable or RequestingPC cannot be null."));
 		return false;
 	}
 
@@ -56,46 +56,12 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		UE_LOG(LogTemp, Warning,
 			TEXT("[UInspectSubsystem::BeginInspect] Already inspecting %s; call EndInspect() before "
 			"starting a new session."),
-			*CurrentSession->GetInspectedComponent()->GetOwner()->GetName());
+			*CurrentSession->GetInspectable().GetObjectRef()->GetName());
 		return false;
 	}
-
-	// Get default settings from Project Settings
-	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
-
-	UInspectableComponent* InspectComp = ActorToInspect->FindComponentByClass<UInspectableComponent>();
-	if (!InspectComp)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[UInspectSubsystem::BeginInspect] %s has no InspectableComponent."),
-		       *ActorToInspect->GetName());
-		return false;
-	}
-
-	UInspectConfig* Config = IInspectable::Execute_GetInspectConfig(InspectComp);
-	if (!Config)
-	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[UInspectSubsystem::BeginInspect] GetInspectConfig returned null on %s."),
-			*InspectComp->GetName()
-		);
-		return false;
-	}
-
-	UPrimitiveComponent* Mesh = IInspectable::Execute_GetInspectMeshOverride(InspectComp);
-	if (!Mesh)
-	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[UInspectSubsystem::BeginInspect] No mesh found on %s."),
-			*InspectComp->GetName());
-		return false;
-	}
-
-	UInspectorComponent* FoundInspectPlayerComp = FindInspectPlayerComponent(RequestingPC);
-	if (!FoundInspectPlayerComp)
+	
+	UInspectorComponent* FoundInspectorComp = FindInspectPlayerComponent(RequestingPC);
+	if (!FoundInspectorComp)
 	{
 		UE_LOG(
 			LogTemp,
@@ -104,10 +70,42 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 			" nor PlayerCharacter."));
 		return false;
 	}
-
+	
 	// Cache the player controller and player component 
 	OwningPC = RequestingPC;
-	InspectPlayerComponent = FoundInspectPlayerComp;
+	InspectorComponent = FoundInspectorComp;
+	
+	// Get default settings from Project Settings
+	const UInspectSettings* InspectSettings = GetDefault<UInspectSettings>();
+
+	// Get resolved inspect config
+	UInspectConfig* ConfigOverride = IInspectable::Execute_GetInspectConfig(Inspectable.GetObject());	
+	UInspectConfig* Config = ConfigOverride
+		? ConfigOverride
+		: InspectorComponent->GetDefaultInspectConfig();
+	
+	if (!Config)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[UInspectSubsystem::BeginInspect] GetInspectConfig returned null on %s. at least "
+			"Default Inspect Config on Inspector must be assigned in order to work by a default configuration."),
+			*Inspectable.GetObjectRef()->GetName()
+		);
+		return false;
+	}
+
+	UPrimitiveComponent* Mesh = IInspectable::Execute_GetInspectMesh(Inspectable.GetObject());
+	if (!Mesh)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[UInspectSubsystem::BeginInspect] No mesh found on %s."),
+			*Inspectable.GetObjectRef()->GetName());
+		return false;
+	}
 	
 	// Pause game if required
 	if (InspectSettings->bPauseGameWhileInspection)
@@ -115,26 +113,27 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 		OwningPC->SetPause(true);
 	}
 
-	// Notify source actor 
-	IInspectable::Execute_OnInspectBegin(InspectComp);
-
 	// Build capture setup 
 	SetupCaptureActor(Mesh);
 
 	// Spawn the session 
-	const UClass* SessionClass = InspectComp->GetWidgetClassOverride()
-		                       ? InspectComp->GetWidgetClassOverride().Get()
-		                       : UInspectSession::StaticClass();
+	const TSubclassOf<UInspectSession> SessionClassOverride { InspectorComponent->GetSessionClassOverride() };
+	const UClass* SessionClass = SessionClassOverride
+		? SessionClassOverride.Get()
+		: UInspectSession::StaticClass();
 
 	CurrentSession = NewObject<UInspectSession>(this, SessionClass);
-	CurrentSession->Initialize(this, InspectComp, Config, OwningPC, InspectMeshProxy);
+	CurrentSession->InitializeSession(this, Inspectable, Config, OwningPC, InspectMeshProxy);
 	CurrentSession->SetZoom(Config->InitialInspectScale);
 
 	CurrentSession->OnSessionStart();
+	
+	// Notify source actor 
+	IInspectable::Execute_OnInspectBegin(Inspectable.GetObject(), GetCurrentSession());
+	
+	const TSoftClassPtr<UInspectWidget>& CustomClass = IInspectable::Execute_GetInspectWidgetClass(Inspectable.GetObject()).Get();
 
-	const TSoftClassPtr<UInspectWidget>& CustomClass = InspectComp->GetWidgetClassOverride();
- 
-	TSubclassOf<UInspectWidget> InspectWidgetClass =
+	const TSubclassOf<UInspectWidget> InspectWidgetClass =
 		CustomClass.IsValid()
 			? CustomClass.LoadSynchronous()
 			: InspectSettings->InspectWidgetClass.LoadSynchronous();
@@ -157,7 +156,7 @@ bool UInspectSubsystem::BeginInspect(AActor* ActorToInspect, APlayerController* 
 	RequestingPC->SetInputMode(InputMode);
 	RequestingPC->SetShowMouseCursor(true);
 	
-	HandleInputMappings(CurrentSession->GetInspectedComponent(), true);
+	HandleInputMappings(CurrentSession->GetInspectable(), true);
 	
 	return true;
 }
@@ -175,12 +174,12 @@ void UInspectSubsystem::EndInspect()
 		OwningPC->SetPause(false);
 	}
 
-	if (CurrentSession->GetInspectedComponent())
+	if (TScriptInterface<IInspectable> Inspectable = CurrentSession->GetInspectable())
 	{
 		// Remove Input Mappings
-		HandleInputMappings(CurrentSession->GetInspectedComponent(), false);
+		HandleInputMappings(Inspectable, false);
 
-		IInspectable::Execute_OnInspectEnd(CurrentSession->GetInspectedComponent());
+		IInspectable::Execute_OnInspectEnd(Inspectable.GetObject());
 	}
 	
 	// Remove UI 
@@ -205,7 +204,7 @@ void UInspectSubsystem::EndInspect()
 	// Clear references
 	CurrentSession = nullptr;
 	OwningPC = nullptr;
-	InspectPlayerComponent = nullptr;
+	InspectorComponent = nullptr;
 }
 
 void UInspectSubsystem::DispatchInput(const UInputAction* SourceInputAction, FInputActionValue Value)
@@ -316,28 +315,28 @@ void UInspectSubsystem::TeardownCaptureActor()
 	RenderTarget = nullptr;
 }
 
-void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComponent, bool bAddInspectMappings)
+void UInspectSubsystem::HandleInputMappings(TScriptInterface<IInspectable> Inspectable, bool bAddInspectMappings)
 {
-	if (!InspectedComponent || !InspectPlayerComponent)
+	if (!Inspectable || !InspectorComponent)
 	{
 		return;
 	}
 
-	const FInspectMapping& ItemMapping = InspectedComponent->GetInspectActionMapping();
-	const bool bUseDefault = InspectedComponent->ShouldUseDefaultInspectMapping();
+	const FInspectMapping& ItemMapping = IInspectable::Execute_GetInspectActionMapping(Inspectable.GetObject());
+	const bool bUseDefault = IInspectable::Execute_ShouldAddDefaultInspectMapping(Inspectable.GetObject());
 
 	if (bAddInspectMappings)
 	{
-		if (bUseDefault && InspectPlayerComponent->DefaultInspectMapping.InputMappingContext)
+		if (bUseDefault && InspectorComponent->GetDefaultInspectMapping().InputMappingContext)
 		{
-			InspectPlayerComponent->AddInputMappingContext(
-				InspectPlayerComponent->DefaultInspectMapping.InputMappingContext,
-				InspectPlayerComponent->DefaultInspectMapping.Priority);
+			InspectorComponent->AddInputMappingContext(
+				InspectorComponent->GetDefaultInspectMapping().InputMappingContext,
+				InspectorComponent->GetDefaultInspectMapping().Priority);
 		}
 
 		if (ItemMapping.InputMappingContext)
 		{
-			InspectPlayerComponent->AddInputMappingContext(
+			InspectorComponent->AddInputMappingContext(
 				ItemMapping.InputMappingContext,
 				ItemMapping.Priority);
 		}
@@ -346,23 +345,23 @@ void UInspectSubsystem::HandleInputMappings(UInspectableComponent* InspectedComp
 		// same UInputAction. This is the sole place this merge happens —
 		// UInspectorComponent only ever sees the final, flat result.
 		CurrentInspectActionMap = ResolveActionMapping(
-			bUseDefault ? InspectPlayerComponent->DefaultInspectMapping.ActionMapping : 
+			bUseDefault ? InspectorComponent->GetDefaultInspectMapping().ActionMapping : 
 			TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>(),
 			ItemMapping.ActionMapping);
 
-		InspectPlayerComponent->BindActionMapping(CurrentInspectActionMap);
+		InspectorComponent->BindActionMapping(CurrentInspectActionMap);
 	}
 	else
 	{
 		if (bUseDefault)
 		{
-			InspectPlayerComponent->RemoveInputMappingContext(
-				InspectPlayerComponent->DefaultInspectMapping.InputMappingContext);
+			InspectorComponent->RemoveInputMappingContext(
+				InspectorComponent->GetDefaultInspectMapping().InputMappingContext);
 		}
 
-		InspectPlayerComponent->RemoveInputMappingContext(ItemMapping.InputMappingContext);
+		InspectorComponent->RemoveInputMappingContext(ItemMapping.InputMappingContext);
 
-		InspectPlayerComponent->UnbindAllActions();
+		InspectorComponent->UnbindAllActions();
 
 		CurrentInspectActionMap.Empty();
 	}
@@ -449,7 +448,7 @@ UInspectorComponent* UInspectSubsystem::FindInspectPlayerComponent(const APlayer
 	{
 		UE_LOG(LogTemp, Error,
 			TEXT("[UInspectSubsystem::FindInspectPlayerComponent] Both PlayerController '%s' and Pawn '%s' have "
-			"an InspectPlayerComponent. Only one must have this component."
+			"an InspectorComponent. Only one must have this component."
 			"The PlayerController's component will be used."),
 			*PlayerController->GetName(),
 			*PlayerController->GetPawn()->GetName());

@@ -21,21 +21,44 @@ class UInspectConfig;
  *
  * Pair with UInspectTriggerComponent on the same actor to handle proximity.
  */
-UCLASS( ClassGroup=("Inspect"), meta=(BlueprintSpawnableComponent) )
+UCLASS( ClassGroup=("Inspect"), Blueprintable, BlueprintType, meta=(BlueprintSpawnableComponent) )
 class INSPECTIONSYSTEM_API UInspectableComponent : public UActorComponent, public IInspectable
 {
 	GENERATED_BODY()
 
 public:	
 	
-	UInspectableComponent();
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInspectionStarted, UInspectableComponent*, InspectedComponent, UInspectSession*, Session);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInspectionEnded, UInspectableComponent*, InspectedComponent);
+
+	UPROPERTY(BlueprintAssignable, Category="Inspect")
+	FOnInspectionStarted OnInspectStarted;
+
+	UPROPERTY(BlueprintAssignable, Category="Inspect")
+	FOnInspectionEnded OnInspectEnded;
+	
+	// Public API
+	
+	UFUNCTION(BlueprintCallable, Category = "Inspect", meta=(Keywords = "Start"))
+	bool BeginInspect();
+	
+	UFUNCTION(BlueprintCallable, Category = "Inspect", meta=(Keywords = "Finish"))
+	void EndInspect();
 	
 	// IInspectable 
+	
+	virtual FText GetDisplayName_Implementation() const override { return DisplayName; };
+	virtual FText GetDescription_Implementation() const override { return Description; };
 
-	virtual UInspectConfig* GetInspectConfig_Implementation() const override;
-	virtual void OnInspectBegin_Implementation() override;
+	virtual void OnInspectBegin_Implementation(UInspectSession* InspectSession) override;
 	virtual void OnInspectEnd_Implementation() override;
-	virtual UPrimitiveComponent* GetInspectMeshOverride_Implementation() const override;
+	
+	virtual UInspectConfig* GetInspectConfig_Implementation() const override { return InspectConfigOverride; };
+	virtual UPrimitiveComponent* GetInspectMesh_Implementation() const override { return CachedMesh; };
+	virtual TSubclassOf<UInspectWidget> GetInspectWidgetClass_Implementation() const override { return WidgetClassOverride; };
+	virtual FInspectMapping GetInspectActionMapping_Implementation() const override { return AdditionalInspectMapping; };
+	virtual bool ShouldAddDefaultInspectMapping_Implementation() const override { return bUseDefaultInspectMapping; };
+	
 	
 protected:
 	
@@ -91,6 +114,14 @@ protected:
 	
 	virtual void BeginPlay() override;
 	
+	/** Called when inspection begins. Override to implement custom behavior. */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent,Category = "Inspect|Inspect")
+	void OnEnterInspect();
+	
+	/** Called when inspection ends. Override to clean up custom behavior. */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent,Category = "Inspect|Inspect")
+	void OnExitInspect();
+	
 	// Helpers 
 
 	/**
@@ -104,7 +135,7 @@ protected:
 	* Override this class if you want specific widget class for this object's inspection
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|UI", meta=(AllowPrivateAcess="true"))
-	TSoftClassPtr<class UInspectWidget> WidgetClassOverride;
+	TSubclassOf<class UInspectWidget> WidgetClassOverride;
 	
 	/** Cached resolved mesh so we don't search every frame. */
 	UPROPERTY(Transient)
@@ -128,18 +159,4 @@ public:
 	{
 		Description = InDescription;
 	}
-	
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Info")
-	FORCEINLINE FText GetDisplayName() const { return DisplayName; }
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Info")
-	FORCEINLINE FText GetDescription() const { return Description; }
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|UI")
-	TSoftClassPtr<UInspectWidget> GetWidgetClassOverride() const { return WidgetClassOverride; }
-		
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")	
-	const FInspectMapping& GetInspectActionMapping() const { return AdditionalInspectMapping; }
-	
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")
-	bool ShouldUseDefaultInspectMapping() const {return bUseDefaultInspectMapping;};
 };

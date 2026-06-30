@@ -69,14 +69,14 @@ void UInspectorComponent::BeginPlay()
 	
 	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
 	{
-		OwningPC = PC;
+		OwnerPlayerController = PC;
 	}
 	else if (APawn* Pawn = Cast<APawn>(GetOwner()))
 	{
-		OwningPC = Cast<APlayerController>(Pawn->GetController());
+		OwnerPlayerController = Cast<APlayerController>(Pawn->GetController());
 	}
 
-	if (!OwningPC)
+	if (!OwnerPlayerController)
 	{
 		UE_LOG(LogTemp, Error,
 			TEXT("[UInspectorComponent::BeginPlay] InspectPlayerComponent must be attached to either"
@@ -91,12 +91,12 @@ UEnhancedInputLocalPlayerSubsystem* UInspectorComponent::GetInputSubsystem()
 		return InputSubsystem;
 	}
 
-	if (!OwningPC)
+	if (!OwnerPlayerController)
 	{
 		return nullptr;
 	}
 
-	if (const ULocalPlayer* LocalPlayer = OwningPC->GetLocalPlayer())
+	if (const ULocalPlayer* LocalPlayer = OwnerPlayerController->GetLocalPlayer())
 	{
 		InputSubsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	}
@@ -138,16 +138,16 @@ void UInspectorComponent::RemoveInputMappingContext(UInputMappingContext* Contex
 
 void UInspectorComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ActionMapping)
 {
-	if (!OwningPC)
+	if (!OwnerPlayerController)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[UInspectorComponent::BindActionMapping] No OwningPC, cannot bind."));
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectorComponent::BindActionMapping] No OwnerPlayerController, cannot bind."));
 		return;
 	}
 
-	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC->InputComponent);
+	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwnerPlayerController->InputComponent);
 	if (!EIC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[UInspectorComponent::BindActionMapping] OwningPC has no EnhancedInputComponent."));
+		UE_LOG(LogTemp, Warning, TEXT("[UInspectorComponent::BindActionMapping] OwnerPlayerController has no EnhancedInputComponent."));
 		return;
 	}
 
@@ -181,7 +181,7 @@ void UInspectorComponent::BindActionMapping(const TMap<TObjectPtr<UInputAction>,
 
 void UInspectorComponent::UnbindAllActions()
 {
-	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwningPC ? OwningPC->InputComponent : nullptr))
+	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwnerPlayerController ? OwnerPlayerController->InputComponent : nullptr))
 	{
 		for (uint32 Handle : BoundActionHandles)
 		{
@@ -203,6 +203,9 @@ void UInspectorComponent::OnInspectInputTriggered(const FInputActionInstance& Ac
 
 UInspectSubsystem* UInspectorComponent::GetInspectSubsystem() const
 {
-	UWorld* World = GetWorld();
-	return World ? World->GetSubsystem<UInspectSubsystem>() : nullptr;
+	 if (OwnerPlayerController)
+	 {
+		 return OwnerPlayerController->GetLocalPlayer()->GetSubsystem<UInspectSubsystem>();
+	 }
+	return nullptr;
 }

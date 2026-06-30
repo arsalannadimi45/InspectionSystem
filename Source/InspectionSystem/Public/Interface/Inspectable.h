@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Core/InspectConfig.h"
+#include "Core/InspectTypes.h"
 #include "Inspectable.generated.h"
 
 // This class does not need to be modified.
@@ -28,10 +29,36 @@ class INSPECTIONSYSTEM_API IInspectable
 
 public:
 	/**
+	 * @return Display name assigned to this item specifically for inspection
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Info")
+	FText GetDisplayName() const;
+	
+	/**
+	 * @return Description for this item specifically for inspection
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Info")
+	FText GetDescription() const;
+	
+	/**
+	* Returns this object's custom inspect input mapping.
+	* Any actions returned here add/override the default mapping for matching input actions.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Input")
+	FInspectMapping GetInspectActionMapping() const;
+
+	/**
+	* Returns whether the project's default inspect input mapping should be applied
+	* alongside this object's custom mapping.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Input")
+	bool ShouldAddDefaultInspectMapping() const;
+	
+	/**
 	 * Returns the data asset driving this object's inspect configuration.
 	 * Must be overridden. Return nullptr to abort inspection.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Config")
 	UInspectConfig* GetInspectConfig() const;
 
 	/**
@@ -39,7 +66,7 @@ public:
 	 * Use it to play a pickup animation, hide the world-space mesh, etc.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect")
-	void OnInspectBegin();
+	void OnInspectBegin(UInspectSession* InspectSession);
 
 	/**
 	 * Called when the player exits inspect mode.
@@ -52,6 +79,12 @@ public:
 	 * Optional: override to provide a custom mesh shown during inspection.
 	 * Return nullptr to use the actor's own root static/skeletal mesh component.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect")
-	UPrimitiveComponent* GetInspectMeshOverride() const;
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Mesh")
+	UPrimitiveComponent* GetInspectMesh() const;
+	
+	/**
+	* Optional: override to create your own Inspect Widget upon inspection.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inspect|Session")
+	TSubclassOf<UInspectWidget> GetInspectWidgetClass() const;
 };

@@ -6,6 +6,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "InspectSubsystem.generated.h"
 
+class IInspectable;
 class UInspectAction;
 class UInspectableComponent;
 class UInspectorComponent;
@@ -22,7 +23,7 @@ class UStaticMeshComponent;
 /**
  * UInspectSubsystem
  *
- * All other systems (player component, UI, etc.) talk to this — they never
+ * All other systems (player component, UI, etc.) talk to this ; they never
  * talk to each other directly. This is the single source of truth.
  *
  * This subsystem is also the sole authority for resolving the FINAL
@@ -31,12 +32,12 @@ class UStaticMeshComponent;
  * with item-specific entries always winning on key collision, and hands the
  * resolved, flat map to UInspectorComponent purely for binding/transport.
  *
- * Lifetime: created automatically when the World loads, destroyed when it unloads.
- * Access: UGameplayStatics or UWorld::GetSubsystem<UInspectSubsystem>()
+ * Lifetime: created automatically when the Local Player loads, destroyed when it unloads.
+ * Access: UGameplayStatics or ULocalPlayer::GetSubsystem<UInspectSubsystem>()
  */
 
 UCLASS()
-class INSPECTIONSYSTEM_API UInspectSubsystem : public UWorldSubsystem
+class INSPECTIONSYSTEM_API UInspectSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
@@ -45,18 +46,18 @@ public:
 
 	/**
 	 * Begin inspecting an actor.
-	 * @param ActorToInspect  The world actor implementing IInspectable.
-	 * @param RequestingPC    The player controller making the request.
+	 * @param Inspectable The inspectable interface reference implemented in component or actor
+	 * @param RequestingPC The player controller making the request.
 	 * @return false if inspection cannot start (already active, missing data, etc.)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Inspect")
-	bool BeginInspect(AActor* ActorToInspect, APlayerController* RequestingPC);
+	UFUNCTION(BlueprintCallable, Category = "Inspect", meta=(Keywords="Finish"))
+	bool BeginInspect(TScriptInterface<IInspectable> Inspectable, APlayerController* RequestingPC);
 
 	/**
 	 * End the current inspection session.
 	 * Safe to call even when Idle.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Inspect")
+	UFUNCTION(BlueprintCallable, Category = "Inspect", meta=(Keywords="Finish"))
 	void EndInspect();
 
 	UFUNCTION(BlueprintPure, Category = "Inspect")
@@ -86,7 +87,7 @@ protected:
 	TObjectPtr<APlayerController> OwningPC;
 	
 	UPROPERTY(Transient)
-	TObjectPtr<UInspectorComponent> InspectPlayerComponent;
+	TObjectPtr<UInspectorComponent> InspectorComponent;
 	
 	UPROPERTY(Transient)
 	TObjectPtr<UInspectWidget> ActiveWidget;
@@ -116,12 +117,12 @@ protected:
 	void TeardownCaptureActor();
 
 	/**
-	* Add Input Mappings (resolves + binds the final action map; sole point
+	* Add Input Mappings (resolves + binds the final action map
 	* where Default and per-item Additional mappings are merged).
-	* @param InspectedComponent Component that belongs to currently inspecting item
+	* @param Inspectable Inspectable Interface on the Actor or Object that's getting inspected
 	* @param bAddInspectMappings Whether if it should Add + Bind Input Mappings and Actions or Remove + Unbind
 	*/
-	void HandleInputMappings(UInspectableComponent* InspectedComponent, bool bAddInspectMappings);
+	void HandleInputMappings(TScriptInterface<IInspectable> Inspectable, bool bAddInspectMappings);
 	
 	/**
 	 * Merges Default and per-item Additional action maps into one final map,

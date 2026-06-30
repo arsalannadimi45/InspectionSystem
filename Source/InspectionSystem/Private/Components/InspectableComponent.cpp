@@ -4,14 +4,9 @@
 
 #include "EnhancedActionKeyMapping.h"
 #include "InputMappingContext.h"
-#include "Core/InspectConfig.h"
+#include "Blueprint/InspectBlueprintLibrary.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
-
-UInspectableComponent::UInspectableComponent()
-{
-	PrimaryComponentTick.bCanEverTick = true;
-}
 
 #if WITH_EDITOR
 void UInspectableComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -68,24 +63,30 @@ void UInspectableComponent::BeginPlay()
 
 // IInspectable default implementations 
 
-UInspectConfig* UInspectableComponent::GetInspectConfig_Implementation() const
+bool UInspectableComponent::BeginInspect()
 {
-	return InspectConfigOverride;
+	TScriptInterface<IInspectable> Inspectable;
+	Inspectable.SetObject(this);
+	Inspectable.SetInterface(Cast<IInspectable>(this));
+	
+	return UInspectBlueprintLibrary::BeginInspect(GetWorld(), Inspectable);
 }
 
-void UInspectableComponent::OnInspectBegin_Implementation()
+void UInspectableComponent::EndInspect()
 {
-	// Default: do nothing. Blueprints can override to hide world mesh, play VO, update quest state, etc.
+	UInspectBlueprintLibrary::EndInspect(GetWorld());
+}
+
+void UInspectableComponent::OnInspectBegin_Implementation(UInspectSession* InspectSession)
+{
+	OnEnterInspect();
+	OnInspectStarted.Broadcast(this, InspectSession);
 }
 
 void UInspectableComponent::OnInspectEnd_Implementation()
 {
-	// Default: do nothing.
-}
-
-UPrimitiveComponent* UInspectableComponent::GetInspectMeshOverride_Implementation() const
-{
-	return CachedMesh;
+	OnExitInspect();
+	OnInspectEnded.Broadcast(this);
 }
 
 // Helpers 

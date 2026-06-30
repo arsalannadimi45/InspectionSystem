@@ -20,14 +20,8 @@ class APlayerController;
 /**
  * UInspectorComponent
  *
- * Add this to your PlayerPawn (or PlayerCharacter).
- * It manages:
- *   - tracking which inspectable is in range
- *   - showing/hiding the HUD prompt
- *   - forwarding Enhanced Input to the InspectSubsystem
- *
- * The component intentionally contains NO game-specific logic.
- * Swap input actions via the properties panel for each project.
+ * Add this to your PlayerController (or PlayerCharacter).
+ * It handles input routing and default data that should be used across inspections.
  */
 UCLASS( ClassGroup=("Inspect"), meta=(BlueprintSpawnableComponent) )
 class INSPECTIONSYSTEM_API UInspectorComponent : public UActorComponent
@@ -43,19 +37,41 @@ public:
 	void RefreshActionMapping();
 #endif
 	
-
+protected:
+	
 	// Enhanced Input 
 
 	/**
- 	* Default inspection input setup.
- 	* Any Input Mapping Contexts and Input Action → Inspect Action bindings
- 	* defined here are registered as the default inspection mapping
- 	* when this object is inspected.
+	 * Default inspection input setup.
+	 * Any Input Mapping Contexts and Input Action → Inspect Action bindings
+	 * defined here are registered as the default inspection mapping
+	 * when this object is inspected.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Inspect|Input")
 	FInspectMapping DefaultInspectMapping;
+	
+	/** The default inspect config that's used for all inspectable objects unless overriden. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Config")
+	TObjectPtr<UInspectConfig> DefaultInspectConfig;
+	
+	// Session
+
+	/**
+	 * Override session class in order to have your own session class when inspection begins.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inspect|Session")
+	TSubclassOf<UInspectSession> SessionClassOverride;
 
 public:
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Input")
+	FORCEINLINE FInspectMapping GetDefaultInspectMapping() const { return DefaultInspectMapping; }
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Config")
+	FORCEINLINE UInspectConfig* GetDefaultInspectConfig() const { return DefaultInspectConfig; }
+	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inspect|Session")
+	FORCEINLINE TSubclassOf<UInspectSession> GetSessionClassOverride() const { return SessionClassOverride; }
 	
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Input")
 	void AddInputMappingContext(UInputMappingContext* Context, int32 Priority);
@@ -79,11 +95,10 @@ public:
 	/** True if BindActionMapping has bindings currently active. Used by the subsystem as a re-entrancy guard. */
 	bool HasActiveBindings() const { return BoundActionHandles.Num() > 0; }
 	
-	
 protected:
 	
 	UPROPERTY(Transient)
-	TObjectPtr<APlayerController> OwningPC;
+	TObjectPtr<APlayerController> OwnerPlayerController;
 	
 	UPROPERTY()
 	TObjectPtr<UEnhancedInputLocalPlayerSubsystem> InputSubsystem;

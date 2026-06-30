@@ -35,9 +35,9 @@ public:
 	virtual bool IsTickableWhenPaused() const override { return true; }
 	
 	UFUNCTION(BlueprintCallable, Category = "Inspect|Session")
-	void Initialize(
+	void InitializeSession(
 		UInspectSubsystem* InSubsystem,
-		UInspectableComponent* InComponent,
+		TScriptInterface<IInspectable> InInspectable,
 		UInspectConfig* InConfig,
 		APlayerController* InPC,
 		UPrimitiveComponent* InProxyMesh);
@@ -83,7 +83,7 @@ public:
 	UInspectSubsystem* GetInspectSubsystem() const { return Subsystem; }
 
 	UFUNCTION(BlueprintPure, Category="Inspect|Session")
-	UInspectableComponent* GetInspectedComponent() const { return InspectedComponent; }
+	TScriptInterface<IInspectable> GetInspectable() const { return Inspectable; }
 
 	UFUNCTION(BlueprintPure, Category="Inspect|Session")
 	UInspectConfig* GetInspectConfig() const { return InspectConfig; }
@@ -119,7 +119,7 @@ protected:
 	TObjectPtr<UInspectSubsystem> Subsystem;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
-	TObjectPtr<UInspectableComponent> InspectedComponent;
+	TScriptInterface<IInspectable> Inspectable;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Inspect|Session")
 	TObjectPtr<UInspectConfig> InspectConfig;

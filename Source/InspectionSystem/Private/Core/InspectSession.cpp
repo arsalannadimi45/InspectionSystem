@@ -44,21 +44,21 @@ void UInspectSession::Tick(float DeltaTime)
 	UpdateCurrentTransform();
 }
 
-void UInspectSession::Initialize(
+void UInspectSession::InitializeSession(
 	UInspectSubsystem* InSubsystem,
-	UInspectableComponent* InComponent,
+	TScriptInterface<IInspectable> InInspectable,
 	UInspectConfig* InConfig,
 	APlayerController* InPC,
 	UPrimitiveComponent* InProxyMesh)
 {
 	Subsystem = InSubsystem;
-	InspectedComponent = InComponent;
+	Inspectable = InInspectable;
 	InspectConfig = InConfig;
 	OwningPC = InPC;
 	ProxyMesh = InProxyMesh;
 
 	if (!Subsystem ||
-	!InspectedComponent ||
+	!Inspectable ||
 	!InspectConfig ||
 	!OwningPC ||
 	!ProxyMesh)
