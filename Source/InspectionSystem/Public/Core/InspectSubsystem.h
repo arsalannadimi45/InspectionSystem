@@ -6,12 +6,14 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "InspectSubsystem.generated.h"
 
+class UInputMappingContext;
 class IInspectable;
 class UInspectAction;
 class UInspectableComponent;
 class UInspectorComponent;
 class UInspectSession;
 struct FInputActionValue;
+struct FInspectMapping;
 class UInputAction;
 class UInspectConfig;
 class UInspectWidget;
@@ -23,7 +25,7 @@ class UStaticMeshComponent;
 /**
  * UInspectSubsystem
  *
- * All other systems (player component, UI, etc.) talk to this ; they never
+ * All other systems (inspector component, inspectable component, etc.) talk to this ; they never
  * talk to each other directly. This is the single source of truth.
  *
  * This subsystem is also the sole authority for resolving the FINAL
@@ -115,6 +117,7 @@ protected:
  
 	void SetupCaptureActor(UPrimitiveComponent* SourceMesh);
 	void TeardownCaptureActor();
+	void ValidateInputMappingContext(const UInputMappingContext* MappingContext);
 
 	/**
 	* Add Input Mappings (resolves + binds the final action map
@@ -124,11 +127,14 @@ protected:
 	*/
 	void HandleInputMappings(TScriptInterface<IInspectable> Inspectable, bool bAddInspectMappings);
 	
+	void AddInspectMappings(const FInspectMapping& ItemMapping, bool bUseDefault);
+	void RemoveInspectMappings(const FInspectMapping& ItemMapping, bool bUseDefault);
+	
 	/**
 	 * Merges Default and per-item Additional action maps into one final map,
 	 * with item-specific entries overriding default entries on key collision.
 	 */
-	static TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> ResolveActionMapping(
+	static TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> MergeActionMappings(
 		const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& DefaultMapping,
 		const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ItemMapping);
 	

@@ -7,7 +7,7 @@
 #include "Core/InspectConfig.h"
 #include "Interface/Inspectable.h"
 #include "UI/InspectWidget.h"
-
+#include "Core/InspectTypes.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -15,7 +15,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Blueprint/UserWidget.h"
-#include "Components/InspectableComponent.h"
 #include "Components/InspectorComponent.h"
 #include "Core/InspectSession.h"
 #include "Core/InspectSettings.h"
@@ -327,54 +326,71 @@ void UInspectSubsystem::HandleInputMappings(TScriptInterface<IInspectable> Inspe
 
 	if (bAddInspectMappings)
 	{
-		if (bUseDefault && InspectorComponent->GetDefaultInspectMapping().InputMappingContext)
-		{
-			InspectorComponent->AddInputMappingContext(
-				InspectorComponent->GetDefaultInspectMapping().InputMappingContext,
-				InspectorComponent->GetDefaultInspectMapping().Priority);
-		}
-
-		if (ItemMapping.InputMappingContext)
-		{
-			InspectorComponent->AddInputMappingContext(
-				ItemMapping.InputMappingContext,
-				ItemMapping.Priority);
-		}
-
-		// Item-specific bindings always win over default bindings for the
-		// same UInputAction. This is the sole place this merge happens —
-		// UInspectorComponent only ever sees the final, flat result.
-		CurrentInspectActionMap = ResolveActionMapping(
-			bUseDefault ? InspectorComponent->GetDefaultInspectMapping().ActionMapping : 
-			TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>(),
-			ItemMapping.ActionMapping);
-
-		InspectorComponent->BindActionMapping(CurrentInspectActionMap);
+		AddInspectMappings(ItemMapping, bUseDefault);
 	}
 	else
 	{
-		if (bUseDefault)
-		{
-			InspectorComponent->RemoveInputMappingContext(
-				InspectorComponent->GetDefaultInspectMapping().InputMappingContext);
-		}
-
-		InspectorComponent->RemoveInputMappingContext(ItemMapping.InputMappingContext);
-
-		InspectorComponent->UnbindAllActions();
-
-		CurrentInspectActionMap.Empty();
+		RemoveInspectMappings(ItemMapping, bUseDefault);
 	}
 }
 
-TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> UInspectSubsystem::ResolveActionMapping(
+void UInspectSubsystem::AddInspectMappings(const FInspectMapping& ItemMapping, bool bUseDefault)
+{
+	const FInspectMapping& DefaultMapping = InspectorComponent->GetDefaultInspectMapping();
+	bool GameWillBePaused = GetDefault<UInspectSettings>()->bPauseGameWhileInspection;
+	
+	if (bUseDefault && DefaultMapping.InputMappingContext)
+	{
+		if (GameWillBePaused) ValidateInputMappingContext(DefaultMapping.InputMappingContext);
+		
+		InspectorComponent->AddInputMappingContext(
+			DefaultMapping.InputMappingContext,
+			DefaultMapping.Priority);
+	}
+
+	if (ItemMapping.InputMappingContext)
+	{
+		if (GameWillBePaused) ValidateInputMappingContext(ItemMapping.InputMappingContext);
+		
+		InspectorComponent->AddInputMappingContext(
+			ItemMapping.InputMappingContext,
+			ItemMapping.Priority);
+	}
+
+	// Item-specific bindings override default bindings.
+	CurrentInspectActionMap = MergeActionMappings(
+		bUseDefault ? DefaultMapping.ActionMapping : TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>(),
+		ItemMapping.ActionMapping);
+
+	InspectorComponent->BindActionMapping(CurrentInspectActionMap);
+}
+
+void UInspectSubsystem::RemoveInspectMappings(const FInspectMapping& ItemMapping, bool bUseDefault)
+{
+	const FInspectMapping& DefaultMapping = InspectorComponent->GetDefaultInspectMapping();
+
+	if (bUseDefault && DefaultMapping.InputMappingContext)
+	{
+		InspectorComponent->RemoveInputMappingContext(DefaultMapping.InputMappingContext);
+	}
+
+	if (ItemMapping.InputMappingContext)
+	{
+		InspectorComponent->RemoveInputMappingContext(ItemMapping.InputMappingContext);
+	}
+
+	InspectorComponent->UnbindAllActions();
+	CurrentInspectActionMap.Reset();
+}
+
+TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> UInspectSubsystem::MergeActionMappings(
 	const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& DefaultMapping,
 	const TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& ItemMapping)
 {
-	TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> Result = DefaultMapping;
+	TMap<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>> Result(DefaultMapping);
 
-	// Item specific actions, take priority and override
-	for (const auto& Pair : ItemMapping)
+	// Item-specific mappings override defaults.
+	for (const TPair<TObjectPtr<UInputAction>, TSubclassOf<UInspectAction>>& Pair : ItemMapping)
 	{
 		Result.Add(Pair.Key, Pair.Value);
 	}
@@ -457,5 +473,26 @@ UInspectorComponent* UInspectSubsystem::FindInspectPlayerComponent(const APlayer
 	}
 
 	return ControllerComponent ? ControllerComponent : PawnComponent;
+}
+
+void UInspectSubsystem::ValidateInputMappingContext(const UInputMappingContext* MappingContext)
+{
+	if (MappingContext)
+	{
+		for (const FEnhancedActionKeyMapping& Mapping : MappingContext->GetMappings())
+		{
+			if (const UInputAction* InputAction = Mapping.Action)
+			{
+				 if (!InputAction->bTriggerWhenPaused)
+				 {
+				 	UE_LOG(LogTemp, Warning, TEXT(
+				 		"Inspect Input Action '%s' must have \"Trigger When Paused\" enabled."
+				 		" Otherwise, inspect controls will not respond while the game is paused."),
+				 		*InputAction->GetName());
+				 }
+			}
+		}
+	}
+	
 }
 
