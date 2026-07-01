@@ -7,6 +7,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Core/InspectConfig.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
@@ -14,6 +15,14 @@
 UInspectorComponent::UInspectorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	
+	DefaultInspectConfig = Cast<UInspectConfig>(
+		StaticLoadObject(
+			UInspectConfig::StaticClass(),
+			nullptr,
+			TEXT("/InspectionSystem/InspectConfigs/DA_DefaultInspectConfig.DA_DefaultInspectConfig")
+		)
+	);
 }
 
 #if WITH_EDITOR

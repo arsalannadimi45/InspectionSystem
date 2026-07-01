@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "InputActionValue.h"
-#include "InputTriggers.h"
 #include "Core/InspectTypes.h"
 #include "InspectorComponent.generated.h"
 
