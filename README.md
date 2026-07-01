@@ -103,7 +103,7 @@ Add the component to your `PlayerController` (or `PlayerCharacter` — both are 
   - `IA_DefaultInspect_Zoom` → `UInspectZoomAction`
   - `IA_DefaultInspect_ResetTransform` → `UInspectResetTransformAction`
   - `IA_DefaultInspect_End` → `UInspectEndAction`
-- **Default Inspect Config** — assign a `UInspectConfig` data asset (create one via **Add → Miscellaneous → Data Asset → Inspect Config**) to act as the fallback for any item that doesn't specify its own.
+- **Default Inspect Config** — assign a `UInspectConfig` data asset (the plugin ships `DA_DefaultInspectConfig`, you can create one via **Add → Miscellaneous → Data Asset → Inspect Config**) to act as the fallback for any item that doesn't specify its own.
 - **Session Class Override** *(optional)* — assign a `UInspectSession` subclass if you need custom per-session state or behavior.
 
 ### 2. Make an actor inspectable
