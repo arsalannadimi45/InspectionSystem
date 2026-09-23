@@ -13,7 +13,7 @@
  * Determines actions' initial situations, limits and sensitivities while inspecting
  * an Inspectable object
  */
-UCLASS(BlueprintType)
+UCLASS(Blueprintable, BlueprintType)
 class INSPECTIONSYSTEM_API UInspectConfig : public UDataAsset
 {
 	GENERATED_BODY()

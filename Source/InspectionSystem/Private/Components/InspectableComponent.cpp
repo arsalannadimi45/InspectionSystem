@@ -93,14 +93,23 @@ void UInspectableComponent::OnInspectEnd_Implementation()
 
 UPrimitiveComponent* UInspectableComponent::ResolveInspectMesh() const
 {
-	if (MeshOverride)
-	{
-		return MeshOverride;
-	}
-
 	AActor* Owner = GetOwner();
 	if (!Owner)
 	{
+		return nullptr;
+	}
+	
+	if (!AutoFindMesh)
+	{
+		if (UPrimitiveComponent* FoundMesh = Cast<UPrimitiveComponent>(Owner->FindComponentByTag(UPrimitiveComponent::StaticClass(), MeshSearchTag)))
+		{
+			return FoundMesh;
+		}
+		
+		UE_LOG(LogTemp, Error,
+    	TEXT("[UInspectableComponent::ResolveInspectMesh] Mesh is being searched by tag in %s but no mesh with the given tag "
+	    "could be found."), *Owner->GetName());
+	    
 		return nullptr;
 	}
 

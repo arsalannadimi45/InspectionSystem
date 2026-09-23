@@ -24,6 +24,12 @@ public:
 	bool bPauseGameWhileInspection = true;
 	
 	/**
+	* Determines whether to hide the original mesh while inspection or not
+	*/
+	UPROPERTY(Config, EditAnywhere, Category="General")
+	bool bHideOriginalMeshOnInspection = true;
+	
+	/**
 	 * Default widget blueprint that pops up upon inspecting an item
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="UI")
@@ -35,6 +41,12 @@ public:
 	*/
 	UPROPERTY(Config, EditAnywhere, Category="UI")
 	TSoftObjectPtr<UMaterialInterface> InspectRenderMaterial;
+	
+	UPROPERTY(Config, EditAnywhere, Category="Capture")
+	FVector InspectViewportPosition = FVector(0.0f, 0.0f, 50000.0f);
+	
+	UPROPERTY(Config, EditAnywhere, Category="Capture")
+	FRotator InspectViewportCameraRotation = FRotator(0.0f, 0.0f, 0.0f);
 	
 	UPROPERTY(Config, EditAnywhere, Category="Capture")
 	int32 RenderTargetWidth = 1920;

@@ -95,8 +95,8 @@ bool UInspectSubsystem::BeginInspect(TScriptInterface<IInspectable> Inspectable,
 		return false;
 	}
 
-	UPrimitiveComponent* Mesh = IInspectable::Execute_GetInspectMesh(Inspectable.GetObject());
-	if (!Mesh)
+	UPrimitiveComponent* OriginalMesh = IInspectable::Execute_GetInspectMesh(Inspectable.GetObject());
+	if (!OriginalMesh)
 	{
 		UE_LOG(
 			LogTemp,
@@ -111,9 +111,15 @@ bool UInspectSubsystem::BeginInspect(TScriptInterface<IInspectable> Inspectable,
 	{
 		OwningPC->SetPause(true);
 	}
+	
+	// Hide the original mesh if needed
+	if (InspectSettings->bHideOriginalMeshOnInspection)
+	{
+		OriginalMesh->SetVisibility(false, true);
+	}
 
 	// Build capture setup 
-	SetupCaptureActor(Mesh);
+	SetupCaptureActor(OriginalMesh);
 
 	// Spawn the session 
 	const TSubclassOf<UInspectSession> SessionClassOverride { InspectorComponent->GetSessionClassOverride() };
@@ -177,6 +183,12 @@ void UInspectSubsystem::EndInspect()
 	{
 		// Remove Input Mappings
 		HandleInputMappings(Inspectable, false);
+		
+		// Unhide original mesh if needed
+		if (GetDefault<UInspectSettings>()->bHideOriginalMeshOnInspection)
+		{
+			IInspectable::Execute_GetInspectMesh(Inspectable.GetObject())->SetVisibility(true, true);
+		}
 
 		IInspectable::Execute_OnInspectEnd(Inspectable.GetObject());
 	}
@@ -245,7 +257,7 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 		FVector::ZeroVector,
 		FRotator::ZeroRotator,
 		Params);
-
+	
 	// Render target 
 	RenderTarget = NewObject<UTextureRenderTarget2D>(CaptureActor);
 	RenderTarget->InitCustomFormat(
@@ -271,8 +283,9 @@ void UInspectSubsystem::SetupCaptureActor(UPrimitiveComponent* SourceMesh)
 
 	// Position the camera somewhere clean and isolated.
 	// Visibility layers can be used to further isolate if needed.
-	SceneCapture->SetWorldLocation(FVector(0.0f, 0.0f, 50000.0f));
-	SceneCapture->SetWorldRotation(FRotator(0.0f, 0.0f, 0.0f));
+	SceneCapture->SetWorldLocation(InspectSettings->InspectViewportPosition);
+	SceneCapture->SetWorldRotation(InspectSettings->InspectViewportCameraRotation);
+	
 	if (InspectSettings->bOverrideCameraFOV)
 	{
 		SceneCapture->FOVAngle = InspectSettings->CameraFOV; // Tighter FOV = less distortion on items

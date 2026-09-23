@@ -103,12 +103,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Config")
 	TObjectPtr<UInspectConfig> InspectConfigOverride;
 
-	/**
-	 * If set, this specific mesh component is used during inspection instead
-	 * of auto-detecting the first StaticMesh/SkeletalMesh on the owner.
+	/** if set to true, it automatically searches the actor for the first skeletal mesh. if there's
+	 * no skeletal mesh, it searches for static mesh. 
+	 * if set to false, it searches the actor for specific mesh component using given tag.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Mesh")
-	TObjectPtr<UPrimitiveComponent> MeshOverride;
+	bool AutoFindMesh = true;
+
+	/** Inspectable mesh is chosen via this tag */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inspect|Mesh", meta = (EditCondition = "!AutoFindMesh"))
+	FName MeshSearchTag = FName("Inspectable");
 
 protected:
 	
